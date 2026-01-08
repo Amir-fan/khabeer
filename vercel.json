@@ -7,6 +7,14 @@
       "config": {
         "maxDuration": 30
       }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "admin-web/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -15,12 +23,16 @@
       "dest": "/api/index.ts"
     },
     {
-      "src": "/admin/(.*)",
-      "dest": "/api/index.ts"
+      "src": "^/admin/?$",
+      "dest": "/admin-web/index.html"
     },
     {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
+      "src": "^/admin/(.*)$",
+      "dest": "/admin-web/$1"
+    },
+    {
+      "src": "^/$",
+      "dest": "/public/index.html"
     }
   ]
 }
