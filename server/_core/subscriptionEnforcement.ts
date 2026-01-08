@@ -101,10 +101,11 @@ export async function enforceSubscriptionExpiration(userId: number): Promise<"fr
 
     return "pro";
   } catch (error) {
-    logger.error("Subscription enforcement failed", {
-      error: error instanceof Error ? error.message : String(error),
-      userId,
-    });
+    logger.error(
+      "Subscription enforcement failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { userId }
+    );
     // On error, return "free" as safe default
     return "free";
   }
@@ -129,6 +130,7 @@ export async function batchEnforceSubscriptionExpiration(userIds?: number[]): Pr
 
     if (userIds && userIds.length > 0) {
       // Check specific users
+      const userIdsArray = userIds as number[];
       expiredSubscriptions = await dbClient
         .select({
           userId: subscriptions.userId,
@@ -140,7 +142,7 @@ export async function batchEnforceSubscriptionExpiration(userIds?: number[]): Pr
           and(
             eq(subscriptions.status, "active"),
             lte(subscriptions.endDate, new Date()),
-            inArray(subscriptions.userId, userIds)
+            inArray(subscriptions.userId, userIdsArray)
           )
         );
     } else {
@@ -165,10 +167,10 @@ export async function batchEnforceSubscriptionExpiration(userIds?: number[]): Pr
     }
 
     // Get unique user IDs
-    const uniqueUserIds = [...new Set(expiredSubscriptions.map((s) => s.userId))];
+    const uniqueUserIds = [...new Set(expiredSubscriptions.map((s) => s.userId))] as number[];
 
     // Mark subscriptions as expired
-    const subscriptionIds = expiredSubscriptions.map((s) => s.subscriptionId);
+    const subscriptionIds = expiredSubscriptions.map((s) => s.subscriptionId) as number[];
     await dbClient
       .update(subscriptions)
       .set({
@@ -190,9 +192,10 @@ export async function batchEnforceSubscriptionExpiration(userIds?: number[]): Pr
 
     return uniqueUserIds.length;
   } catch (error) {
-    logger.error("Batch subscription enforcement failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.error(
+      "Batch subscription enforcement failed",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return 0;
   }
 }

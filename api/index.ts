@@ -18,7 +18,6 @@ import { initErrorMonitoring } from "../server/_core/monitoring";
 import { seedTierLimits } from "../server/db";
 import { seedAccounts } from "../server/_core/seedAccounts";
 import path from "path";
-import { fileURLToPath } from "url";
 
 // Initialize server (only once, not on every request)
 let app: express.Application | null = null;
@@ -98,9 +97,8 @@ async function initializeServer() {
   );
 
   // Serve admin dashboard
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const adminWebPath = path.join(__dirname, "../admin-web");
+  // Use process.cwd() for Vercel serverless compatibility (instead of import.meta.url)
+  const adminWebPath = path.join(process.cwd(), "admin-web");
   
   app.use("/admin", express.static(adminWebPath));
   

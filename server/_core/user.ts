@@ -49,7 +49,10 @@ export async function normalizeUserFromToken(payload: { userId: number; email: s
       packageId: null as any,
     } as User;
   } catch (error) {
-    logger.error("normalizeUserFromToken failed", { error: error instanceof Error ? error.message : String(error) });
+    logger.error(
+      "normalizeUserFromToken failed",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return null;
   }
 }
