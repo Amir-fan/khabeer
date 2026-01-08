@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Animated,
   Easing,
@@ -12,7 +11,7 @@ import {
   Modal,
   StyleSheet,
   Keyboard,
-  Pressable,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -265,6 +264,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, isAuthenticated, loading } = useAuth();
   const insets = useSafeAreaInsets();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -281,6 +281,22 @@ export default function HomeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [placeholder, setPlaceholder] = useState("اكتب سؤالك هنا...");
   const INPUT_BAR_HEIGHT = 84;
+  const effectiveKeyboardHeight = Math.max(0, keyboardHeight - insets.bottom);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => setKeyboardHeight(e.endCoordinates?.height ?? 0),
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardHeight(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [insets.bottom]);
 
   const chatMutation = trpc.ai.chat.useMutation();
   
@@ -628,13 +644,8 @@ export default function HomeScreen() {
     <GestureDetector gesture={swipeGesture}>
     {/* We handle bottom inset ourselves to avoid KeyboardAvoidingView + SafeArea bottom fighting each other */}
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        className="flex-1"
-      >
-        {/* Tap anywhere to dismiss keyboard */}
-        <Pressable style={{ flex: 1 }} onPress={() => Keyboard.dismiss()}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={{ flex: 1 }}>
         {/* Header */}
         <View style={styles.header}>
           {/* Left Icons - News & Search */}
@@ -705,12 +716,13 @@ export default function HomeScreen() {
             styles.scrollContent,
             {
               // Make sure the last message is always above the input bar + safe area
-              paddingBottom: INPUT_BAR_HEIGHT + Math.max(insets.bottom, 12),
+              paddingBottom:
+                INPUT_BAR_HEIGHT + Math.max(insets.bottom, 12) + effectiveKeyboardHeight,
             },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === "ios" ? "on-drag" : "none"}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {/* Quick Actions - Always visible with toggle */}
@@ -820,7 +832,16 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Chat Input */}
-        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              paddingBottom: Math.max(insets.bottom, 12),
+              // Lift the input bar above the keyboard on both iOS + Android
+              transform: [{ translateY: -effectiveKeyboardHeight }],
+            },
+          ]}
+        >
           <View style={styles.inputWrapper}>
             {/* Request Consultant Button */}
             <AnimatedIconWrapper onPress={handleRequestConsultant}>
@@ -829,6 +850,15 @@ export default function HomeScreen() {
               </View>
             </AnimatedIconWrapper>
             
+            {/* Close keyboard button when keyboard is open */}
+            {effectiveKeyboardHeight > 0 && (
+              <AnimatedIconWrapper onPress={() => Keyboard.dismiss()}>
+                <View style={[styles.attachButton, { backgroundColor: "#F3F4F6" }]}>
+                  {Icons.close("#687076")}
+                </View>
+              </AnimatedIconWrapper>
+            )}
+
             <TextInput
               value={message}
               onChangeText={setMessage}
@@ -839,6 +869,7 @@ export default function HomeScreen() {
               maxLength={1000}
               returnKeyType="send"
               onSubmitEditing={handleSend}
+              blurOnSubmit={false}
             />
             
             {/* Attach File Button */}
@@ -862,8 +893,8 @@ export default function HomeScreen() {
             </AnimatedPressable>
           </View>
         </View>
-        </Pressable>
-      </KeyboardAvoidingView>
+      </View>
+      </TouchableWithoutFeedback>
 
       {/* Upgrade Modal */}
       <Modal
