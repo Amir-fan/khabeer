@@ -105,6 +105,12 @@ const config: ExpoConfig = {
     typedRoutes: true,
     reactCompiler: true,
   },
+  updates: {
+    url: "https://u.expo.dev/628ac244-7cb2-4e69-aa8c-aed951453f35",
+  },
+  runtimeVersion: {
+    policy: "appVersion",
+  },
   extra: {
     eas: {
       projectId: "628ac244-7cb2-4e69-aa8c-aed951453f35",
