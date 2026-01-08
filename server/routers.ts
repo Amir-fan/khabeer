@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requestAssignments, consultationRequests, advisorRatings, requestTransitions, orders, notifications } from "../drizzle/schema";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -88,11 +88,15 @@ async function getAdvisorCompletedOrders(advisorId: number) {
     })
     .from(orders)
     .leftJoin(consultationRequests, eq(orders.requestId, consultationRequests.id))
-    .where(eq(consultationRequests.advisorId, advisorId))
-    // Released consultations only (escrow released)
-    .where(eq(consultationRequests.status, "released" as any))
-    // And completed orders only
-    .where(eq(orders.status, "completed" as any))
+    .where(
+      and(
+        eq(consultationRequests.advisorId, advisorId),
+        // Released consultations only (escrow released)
+        eq(consultationRequests.status, "released" as any),
+        // And completed orders only
+        eq(orders.status, "completed" as any),
+      ),
+    )
     .orderBy(desc(orders.createdAt));
 }
 
@@ -331,8 +335,8 @@ export const appRouter = router({
     logout: publicProcedure.mutation(async ({ ctx }) => {
       // Blacklist JWT token if present
       const authHeader = ctx.req.headers.authorization || ctx.req.headers.Authorization;
-      const { extractTokenFromHeader } = await import("./_core/jwt");
-      const { blacklistToken } = await import("./_core/jwtBlacklist");
+      const { extractTokenFromHeader } = await import("./_core/jwt.js");
+      const { blacklistToken } = await import("./_core/jwtBlacklist.js");
       const jwt = await import("jsonwebtoken");
       
       const token = extractTokenFromHeader(authHeader);
@@ -643,8 +647,13 @@ export const appRouter = router({
           }
 
           // Update user in database
+          const email = ctx.user.email || (await db.getUserById(ctx.user.id))?.email;
+          if (!email) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "تعذر تحديد بريد المستخدم." });
+          }
           await db.upsertUser({
             openId: ctx.user.openId || `local_${ctx.user.id}`,
+            email,
             ...updateData,
             updatedAt: new Date(),
           });
@@ -685,7 +694,7 @@ export const appRouter = router({
      * Returns: AI and advisor chat usage stats (limit, used, remaining)
      */
     usageStats: protectedProcedure.query(async ({ ctx }) => {
-      const { getAiUsageStats, getAdvisorChatUsageStats } = await import("./_core/tier");
+      const { getAiUsageStats, getAdvisorChatUsageStats } = await import("./_core/tier.js");
       
       const userId = ctx.user.id;
       const tier = ctx.user.tier || "free";
@@ -732,9 +741,9 @@ export const appRouter = router({
 
       try {
         // Import account deletion functions
-        const { deleteUserAccount } = await import("./_core/accountDeletion");
-        const { blacklistToken } = await import("./_core/jwtBlacklist");
-        const { extractTokenFromHeader } = await import("./_core/jwt");
+        const { deleteUserAccount } = await import("./_core/accountDeletion.js");
+        const { blacklistToken } = await import("./_core/jwtBlacklist.js");
+        const { extractTokenFromHeader } = await import("./_core/jwt.js");
         const jwt = await import("jsonwebtoken");
 
         // Invalidate current token by blacklisting it
@@ -803,7 +812,7 @@ export const appRouter = router({
         }
 
         // Use real password reset implementation
-        const { requestPasswordReset } = await import("./_core/passwordReset");
+        const { requestPasswordReset } = await import("./_core/passwordReset.js");
         return requestPasswordReset(input.email);
       }),
 

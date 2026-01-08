@@ -20,7 +20,7 @@ import { seedAccounts } from "../server/_core/seedAccounts";
 import path from "path";
 
 // Initialize server (only once, not on every request)
-let app: express.Application | null = null;
+let app: express.Express | null = null;
 let isInitialized = false;
 
 async function initializeServer() {
