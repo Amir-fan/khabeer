@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/use-colors";
-import { useAuth } from "@/hooks/use-auth-new";
+import { useAuth } from "@/hooks/use-auth";
 import { AnimatedPressable } from "@/components/animated-pressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { trpc } from "@/lib/trpc";

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,9 @@ const addOpacity = (hex: string, opacity: number): string => {
   return `${hex}${alpha}`;
 };
 
+const WELCOME_MESSAGE =
+  "السلام عليكم ورحمة الله وبركاته.\n\nأنا مساعدك الشرعي في خبير. اسألني عن الأسهم، العقود، أو أي استفسار مالي شرعي.\n\nكيف أقدر أساعدك اليوم؟";
+
 interface SuggestionCard {
   id: string;
   icon: string;
@@ -39,29 +42,15 @@ interface SuggestionCard {
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
   const [inputText, setInputText] = useState("");
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [conversationId, setConversationId] = useState<number | undefined>(undefined);
+  const [messages, setMessages] = useState<
+    { id: string; role: "user" | "assistant"; content: string; sources?: any[] }[]
+  >([]);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
-
-  // Create conversation mutation
-  const createConversationMutation = trpc.conversations.create.useMutation();
-  
-  // Get current conversation with messages
-  const { data: currentConversation, isLoading: isLoadingConversation, refetch: refetchConversation } = 
-    trpc.conversations.get.useQuery(
-      { conversationId: currentConversationId! },
-      { enabled: !!currentConversationId }
-    );
-
-  // Add message mutation
-  const addMessageMutation = trpc.conversations.addMessage.useMutation({
-    onSuccess: () => {
-      refetchConversation();
-    },
-  });
 
   // AI chat mutation (for getting response)
   const chatMutation = trpc.ai.chat.useMutation();
@@ -72,8 +61,14 @@ export default function HomeScreen() {
     { enabled: !!user } // Only fetch if user is authenticated
   );
 
-  const messages = currentConversation?.messages || [];
-  const isLoading = addMessageMutation.isPending || chatMutation.isPending;
+  const isLoading = chatMutation.isPending;
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const t = setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    return () => clearTimeout(t);
+  }, [messages.length]);
 
   const suggestionCards: SuggestionCard[] = [
     {
@@ -158,42 +153,34 @@ export default function HomeScreen() {
     Keyboard.dismiss();
 
     try {
-      // Ensure we have a conversation
-      let conversationId = currentConversationId;
-      if (!conversationId) {
-        const newConversation = await createConversationMutation.mutateAsync({
-          title: messageContent.substring(0, 50),
-          context: "general",
-        });
-        conversationId = newConversation.id;
-        setCurrentConversationId(conversationId);
-      }
+      // Optimistic append user message locally
+      const userMsgId = `u_${Date.now()}`;
+      setMessages((prev) => [...prev, { id: userMsgId, role: "user", content: messageContent }]);
 
-      // Add user message to conversation
-      await addMessageMutation.mutateAsync({
-        conversationId: conversationId!,
-        role: "user",
-        content: messageContent,
-      });
-
-      // Get AI response
+      // AI response (supports guests; persists only for authenticated users)
       const response = await chatMutation.mutateAsync({
         message: messageContent,
+        context: "general",
+        conversationId,
       });
 
-      // Add assistant message to conversation
-      // Note: Backend addMessage doesn't accept sources yet, but they're returned from AI
-      await addMessageMutation.mutateAsync({
-        conversationId: conversationId!,
-        role: "assistant",
-        content: response.reply || "عذراً، لم أتمكن من إجابة سؤالك.",
-      });
+      if (response.conversationId) setConversationId(response.conversationId);
 
-      // Refetch conversation to show new messages
-      await refetchConversation();
+      const assistantMsgId = `a_${Date.now() + 1}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          content: response.reply || "عذراً، لم أتمكن من إجابة سؤالك.",
+          sources: response.sources,
+        },
+      ]);
       
       // Refetch usage stats to update remaining count
-      await refetchUsageStats();
+      if (isAuthenticated) {
+        await refetchUsageStats();
+      }
     } catch (error: any) {
       console.error("Chat error:", error);
       
@@ -201,9 +188,9 @@ export default function HomeScreen() {
       const isLimitError = error?.data?.code === "FORBIDDEN" || error?.message?.includes("الحد");
       
       if (isLimitError) {
-        // Refetch usage stats to show updated (zero) remaining count
-        await refetchUsageStats();
-        
+        // Refetch usage stats to show updated (zero) remaining count (if authed)
+        if (isAuthenticated) await refetchUsageStats();
+
         Alert.alert(
           "تم بلوغ الحد المسموح",
           error?.message || "تم بلوغ الحد المسموح للدردشة في الخطة الحالية. يرجى الترقية للاستمرار.",
@@ -212,6 +199,10 @@ export default function HomeScreen() {
             {
               text: "ترقية",
               onPress: () => router.push("/packages" as any),
+            },
+            {
+              text: "تسجيل الدخول",
+              onPress: () => router.push("/auth" as any),
             },
           ]
         );
@@ -227,9 +218,18 @@ export default function HomeScreen() {
   };
 
   const handleNewChat = () => {
-    setCurrentConversationId(null);
+    setConversationId(undefined);
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: WELCOME_MESSAGE,
+      },
+    ]);
     setInputText("");
     Keyboard.dismiss();
+    // On "new chat", bring user directly to typing
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   const renderMessage = ({ item }: { item: typeof messages[0] }) => {
@@ -437,9 +437,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Messages or Empty State */}
-        {isLoadingConversation ? (
-          <LoadingState message="جاري تحميل المحادثة..." />
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           renderEmptyState()
         ) : (
           <View style={styles.conversationShell}>
