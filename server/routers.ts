@@ -832,7 +832,7 @@ export const appRouter = router({
         }
 
         // Use real password reset implementation
-        const { resetPassword } = await import("./_core/passwordReset");
+        const { resetPassword } = await import("./_core/passwordReset.js");
         return resetPassword({
           token: input.token,
           newPassword: input.newPassword,
@@ -942,7 +942,7 @@ export const appRouter = router({
         if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول." });
         
         // Use payment placeholder (creates pending order, doesn't unlock anything)
-        const { createPaymentIntentPlaceholder } = await import("./_core/paymentGateway");
+        const { createPaymentIntentPlaceholder } = await import("./_core/paymentGateway.js");
         return createPaymentIntentPlaceholder({
           userId: ctx.user.id,
           requestId: input.requestId,
@@ -981,7 +981,7 @@ export const appRouter = router({
         }
         
         // Check payment completion - MUST be completed to start session
-        const { isPaymentCompleted } = await import("./_core/paymentGateway");
+        const { isPaymentCompleted } = await import("./_core/paymentGateway.js");
         const paymentCompleted = await isPaymentCompleted(order.id);
         
         if (!paymentCompleted) {
@@ -1639,7 +1639,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const advisor = await requireAdvisor(ctx);
-        const { requestWithdrawal } = await import("./_core/withdrawals");
+        const { requestWithdrawal } = await import("./_core/withdrawals.js");
         return requestWithdrawal({
           advisorId: advisor.id,
           amountKwd: input.amountKwd,
@@ -1650,13 +1650,13 @@ export const appRouter = router({
 
     listWithdrawals: protectedProcedure.query(async ({ ctx }) => {
       const advisor = await requireAdvisor(ctx);
-      const { listAdvisorWithdrawals } = await import("./_core/withdrawals");
+      const { listAdvisorWithdrawals } = await import("./_core/withdrawals.js");
       return listAdvisorWithdrawals(advisor.id);
     }),
 
     getBalance: protectedProcedure.query(async ({ ctx }) => {
       const advisor = await requireAdvisor(ctx);
-      const { calculateAdvisorBalance } = await import("./_core/withdrawals");
+      const { calculateAdvisorBalance } = await import("./_core/withdrawals.js");
       const balance = await calculateAdvisorBalance(advisor.id);
       return { balanceKwd: balance, availableKwd: balance };
     }),
@@ -1935,7 +1935,7 @@ export const appRouter = router({
           if (!ctx.user) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول لتحليل العقود." });
           }
-          await enforceAiLimit(ctx.user.id, (ctx.userTier || "free") as any);
+          await enforceUsageLimit({ userId: ctx.user.id, tier: (ctx.userTier || "free") as any, action: "ai" });
 
           if (!input.fileContent || input.fileContent.trim().length === 0) {
             return {
@@ -2042,7 +2042,7 @@ ${input.fileContent}
           if (!ctx.user) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول لاستخدام فحص الأسهم." });
           }
-          await enforceAiLimit(ctx.user.id, (ctx.userTier || "free") as any);
+          await enforceUsageLimit({ userId: ctx.user.id, tier: (ctx.userTier || "free") as any, action: "ai" });
 
           const stockScreeningPrompt = `${ISLAMIC_FINANCE_SYSTEM_PROMPT}
 
@@ -2612,7 +2612,7 @@ ${input.fileContent}
           }
 
           // Delete from storage (S3/Forge) if file URL exists
-          const { deleteFileFromStorage } = await import("./_core/storageDelete");
+          const { deleteFileFromStorage } = await import("./_core/storageDelete.js");
           if (file.url) {
             await deleteFileFromStorage(file.url);
           }
@@ -2844,6 +2844,7 @@ ${input.fileContent}
           // Soft delete: set status to inactive
           await db.upsertUser({
             openId: user.openId || `local_${user.id}`,
+            email: user.email,
             status: "inactive" as any,
             updatedAt: new Date(),
           });

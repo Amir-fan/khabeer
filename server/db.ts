@@ -754,7 +754,9 @@ export async function createConsultant(data: { name: string; email: string; spec
     status: 'active',
   }).returning({ id: consultants.id });
   
-  return { id: result[0].id, ...data, status: 'active', createdAt: new Date() };
+  // Include phone to keep return type aligned with the consultants table shape.
+  // (Some callsites read `phone`, and TS will otherwise infer a union without it.)
+  return { id: result[0].id, ...data, phone: null, status: 'active', createdAt: new Date() };
 }
 
 export async function updateConsultant(id: number, data: { status?: string; maxChatsPerDay?: number }) {
