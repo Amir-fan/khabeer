@@ -11,6 +11,8 @@ import {
   Alert,
   Modal,
   StyleSheet,
+  Keyboard,
+  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -25,6 +27,7 @@ import * as DocumentPicker from "expo-document-picker";
 import Svg, { Path, Circle, Rect, G, Defs, ClipPath } from "react-native-svg";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Storage keys
 const GUEST_MODE_KEY = "khabeer_guest_mode";
@@ -261,6 +264,7 @@ function AnimatedPlaceholder() {
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isAuthenticated, loading } = useAuth();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -276,6 +280,7 @@ export default function HomeScreen() {
   const [conversationHistory, setConversationHistory] = useState<{id: string; title: string; date: string; messages: {role: string; content: string}[]}[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [placeholder, setPlaceholder] = useState("اكتب سؤالك هنا...");
+  const INPUT_BAR_HEIGHT = 84;
 
   const chatMutation = trpc.ai.chat.useMutation();
   
@@ -621,11 +626,15 @@ export default function HomeScreen() {
 
   return (
     <GestureDetector gesture={swipeGesture}>
-    <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
+    {/* We handle bottom inset ourselves to avoid KeyboardAvoidingView + SafeArea bottom fighting each other */}
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         className="flex-1"
       >
+        {/* Tap anywhere to dismiss keyboard */}
+        <Pressable style={{ flex: 1 }} onPress={() => Keyboard.dismiss()}>
         {/* Header */}
         <View style={styles.header}>
           {/* Left Icons - News & Search */}
@@ -692,8 +701,16 @@ export default function HomeScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              // Make sure the last message is always above the input bar + safe area
+              paddingBottom: INPUT_BAR_HEIGHT + Math.max(insets.bottom, 12),
+            },
+          ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "on-drag" : "none"}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {/* Quick Actions - Always visible with toggle */}
@@ -803,7 +820,7 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Chat Input */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={styles.inputWrapper}>
             {/* Request Consultant Button */}
             <AnimatedIconWrapper onPress={handleRequestConsultant}>
@@ -845,6 +862,7 @@ export default function HomeScreen() {
             </AnimatedPressable>
           </View>
         </View>
+        </Pressable>
       </KeyboardAvoidingView>
 
       {/* Upgrade Modal */}

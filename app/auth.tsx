@@ -82,7 +82,7 @@ export default function AuthScreen() {
       if (result.success && result.token && result.user) {
         console.log("[Auth] Login successful:", result.user.email);
         await saveAuth(result.token, result.user);
-        router.replace("/(tabs)");
+        router.replace("/");
       } else {
         showError("فشل تسجيل الدخول. يرجى المحاولة مرة أخرى");
       }
@@ -156,7 +156,7 @@ export default function AuthScreen() {
       await AsyncStorage.setItem(GUEST_MODE_KEY, "true");
       await AsyncStorage.setItem(GUEST_ATTEMPTS_KEY, "0");
       await AsyncStorage.setItem(GUEST_ATTEMPTS_DATE_KEY, new Date().toISOString());
-      router.replace("/(tabs)");
+      router.replace("/");
     } catch (error) {
       console.error("[Auth] Guest mode error:", error);
       showError("فشل الدخول كضيف");

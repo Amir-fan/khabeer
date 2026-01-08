@@ -3139,8 +3139,10 @@ ${input.fileContent}
   }),
 
   library: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const files = await listLibraryFilesForUser(ctx.user);
+    // Guests should be able to browse PUBLIC library files.
+    // Authenticated users see public + personal (advisor/admin) files.
+    list: publicProcedure.query(async ({ ctx }) => {
+      const files = await listLibraryFilesForUser(ctx.user ?? null);
       // Return files without exposing raw storage paths
       // fileUrl is the storage path, not a signed URL
       return files.map((f: any) => ({
@@ -3164,18 +3166,22 @@ ${input.fileContent}
      * Generates URL on demand (not cached) and enforces access control
      * Uses mutation to ensure it's called on-demand, not cached
      */
-    getDownloadUrl: protectedProcedure
+    // Allow downloading public files without login; keep private files protected.
+    getDownloadUrl: publicProcedure
       .input(z.object({ fileId: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول." });
-        
         const file = await db.getLibraryFileById(input.fileId);
         if (!file) {
           throw new TRPCError({ code: "NOT_FOUND", message: "الملف غير موجود." });
         }
 
-        // Enforce access control
-        assertLibraryFileAccess(ctx.user, file);
+        // Enforce access control:
+        // - Public files: anyone can download
+        // - Private files: must be logged in and authorized (target user or admin/advisor rules)
+        if (!file.isPublic) {
+          if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول." });
+          assertLibraryFileAccess(ctx.user, file);
+        }
 
         // Generate signed download URL (expires in 5 minutes)
         if (!supabase) {

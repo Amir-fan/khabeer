@@ -268,7 +268,7 @@ export default function ContractScreen() {
                 <Text style={styles.actionButtonText}>تحميل التقرير</Text>
               </Pressable>
               <Pressable
-                onPress={() => router.push("/(tabs)/chat")}
+                onPress={() => router.push("/")}
                 style={({ pressed }) => [
                   styles.actionButton,
                   { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
