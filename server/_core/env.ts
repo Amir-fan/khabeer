@@ -8,4 +8,11 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  // Seed account credentials (optional - only for development/staging)
+  seedAdminEmail: process.env.SEED_ADMIN_EMAIL,
+  seedAdminPassword: process.env.SEED_ADMIN_PASSWORD,
+  seedAdminName: process.env.SEED_ADMIN_NAME,
+  seedPartnerEmail: process.env.SEED_PARTNER_EMAIL,
+  seedPartnerPassword: process.env.SEED_PARTNER_PASSWORD,
+  seedPartnerName: process.env.SEED_PARTNER_NAME,
 };

@@ -9,6 +9,7 @@
     "dev:metro": "cross-env EXPO_USE_METRO_WORKSPACE_ROOT=1 EXPO_PORT=11000 npx expo start --web --port 11000",
     "build": "esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
+    "vercel-build": "echo 'Vercel build - using serverless functions'",
     "check": "tsc --noEmit",
     "lint": "expo lint",
     "format": "prettier --write .",
