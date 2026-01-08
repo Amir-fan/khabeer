@@ -68,6 +68,19 @@ async function initializeServer() {
 
   registerOAuthRoutes(app);
 
+  // Root landing (Vercel routes all paths to this function)
+  app.get("/", (_req, res) => {
+    res
+      .status(200)
+      .type("text/plain")
+      .send("Khabeer is running. Try /api/health, /api/trpc, or /admin");
+  });
+
+  // Avoid noisy 404s for favicon requests
+  app.get("/favicon.ico", (_req, res) => {
+    res.status(204).end();
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
