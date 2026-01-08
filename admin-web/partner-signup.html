@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>التسجيل كشريك خبير</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/superjson@2.2.1/dist/index.umd.js"></script>
+  <script src="http://localhost:3000/admin/trpc-client.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+  <div class="bg-white w-full max-w-2xl rounded-2xl shadow-lg p-8 space-y-6">
+    <div class="text-center space-y-2">
+      <h1 class="text-2xl font-bold text-gray-800">التقديم كشريك (مستشار/خبير)</h1>
+      <p class="text-gray-500 text-sm">أكمل البيانات التالية ليتم مراجعة طلبك</p>
+    </div>
+    <div id="alert" class="hidden px-4 py-3 rounded-lg text-sm"></div>
+    <form id="signupForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
+          <input id="fullName" required class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+          <input id="email" type="email" required class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+          <input id="password" type="password" required class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+          <input id="phone" class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">المسمى المهني</label>
+          <input id="title" class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">التخصص</label>
+          <input id="specialization" class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">سنوات الخبرة</label>
+          <input id="yearsExperience" type="number" min="0" max="80" class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">نبذة قصيرة</label>
+          <textarea id="bio" class="w-full rounded-xl border-gray-200 px-3 py-2 border focus:ring-2 focus:ring-[#D4AF37]" rows="2"></textarea>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">مستندات (اختياري)</label>
+        <input id="docs" type="file" multiple class="w-full text-sm text-gray-600">
+      </div>
+      <button type="submit" id="submitBtn" class="w-full py-3 rounded-xl bg-[#D4AF37] text-white font-semibold hover:opacity-90">
+        إرسال الطلب
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:3000";
+    const trpcClient = new TRPCClient(API_URL, () => null);
+    const alertBox = document.getElementById("alert");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function showAlert(msg, success = false) {
+      alertBox.textContent = msg;
+      alertBox.className = `block px-4 py-3 rounded-lg text-sm ${success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`;
+    }
+
+    async function trpc(path, input, method = "POST") {
+      return trpcClient.request(path, input, method);
+    }
+
+    document.getElementById("signupForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "جاري الإرسال...";
+      alertBox.className = "hidden";
+      try {
+        const payload = {
+          fullName: document.getElementById("fullName").value.trim(),
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value,
+          phone: document.getElementById("phone").value.trim() || null,
+          title: document.getElementById("title").value.trim() || null,
+          specialization: document.getElementById("specialization").value.trim() || null,
+          yearsExperience: document.getElementById("yearsExperience").value ? parseInt(document.getElementById("yearsExperience").value, 10) : null,
+          bio: document.getElementById("bio").value.trim() || null,
+        };
+        const { id } = await trpc("partnerApplications.submit", payload, "POST");
+
+        // Upload optional docs
+        const files = document.getElementById("docs").files;
+        for (const f of files) {
+          const upload = await trpc("partnerApplications.uploadDocument", {
+            applicationId: id,
+            fileName: f.name,
+            mimeType: f.type,
+            size: f.size,
+          }, "POST");
+          const formData = new FormData();
+          formData.append("file", f);
+          await fetch(upload.uploadUrl, { method: "PUT", body: f });
+        }
+
+        showAlert("تم إرسال الطلب بنجاح. سيتم مراجعته من قبل الإدارة.", true);
+        e.target.reset();
+      } catch (err) {
+        showAlert(err?.message || "حدث خطأ أثناء إرسال الطلب");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "إرسال الطلب";
+      }
+    });
+  </script>
+</body>
+</html>
+
