@@ -58,7 +58,7 @@ export async function uploadLibraryFile(params: {
 
   const safeName = params.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
   const path = `library/${Date.now()}_${safeName}`;
-  const { data, error } = await supabase.storage.from("consultations").createSignedUploadUrl(path, { expiresIn: 300 });
+  const { data, error } = await supabase.storage.from("consultations").createSignedUploadUrl(path);
   if (error || !data?.signedUrl) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "تعذر إنشاء رابط الرفع." });
   }

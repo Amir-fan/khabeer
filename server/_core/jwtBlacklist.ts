@@ -23,8 +23,9 @@ async function getRedisClient(): Promise<any> {
       return null;
     }
 
-    const Redis = (await import("ioredis")).default;
-    redisClient = new Redis(redisUrl, {
+    const RedisModule = await import("ioredis");
+    const Redis = RedisModule.default || RedisModule;
+    redisClient = new (Redis as any)(redisUrl, {
       retryStrategy: (times) => {
         if (times > 3) return null;
         return Math.min(times * 50, 2000);

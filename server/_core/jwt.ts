@@ -43,7 +43,7 @@ export function generateToken(payload: JWTPayload): string {
  */
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   // Check blacklist first (reject logged-out tokens)
-  const { isTokenBlacklisted } = await import("./jwtBlacklist");
+  const { isTokenBlacklisted } = await import("./jwtBlacklist.js");
   const blacklisted = await isTokenBlacklisted(token);
   if (blacklisted) {
     logger.debug("Token is blacklisted (logged out)", {});

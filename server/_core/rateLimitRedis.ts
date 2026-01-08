@@ -33,8 +33,9 @@ async function initRedis(): Promise<boolean> {
     }
 
     // Dynamic import to avoid requiring redis in dev
-    const redis = await import("ioredis");
-    redisClient = new redis.default(redisUrl, {
+    const RedisModule = await import("ioredis");
+    const Redis = RedisModule.default || RedisModule;
+    redisClient = new (Redis as any)(redisUrl, {
       retryStrategy: (times) => {
         if (times > 3) {
           logger.error("Redis connection failed after 3 retries, falling back to in-memory");

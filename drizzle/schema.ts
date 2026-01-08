@@ -621,3 +621,21 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
+/**
+ * Notifications table
+ */
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  type: varchar("type", { length: 50 }).default("general").notNull(),
+  status: varchar("status", { length: 20 }).default("unread").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
