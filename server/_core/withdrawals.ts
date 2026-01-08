@@ -10,7 +10,7 @@
  */
 
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import * as db from "../db";
 import { withdrawalRequests, orders, consultationRequests } from "../../drizzle/schema";
 import { logger } from "./logger";

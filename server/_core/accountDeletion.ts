@@ -8,7 +8,7 @@
 import { TRPCError } from "@trpc/server";
 import { eq, and, sql } from "drizzle-orm";
 import * as db from "../db";
-import { consultationRequests, orders, libraryFiles, notifications, users } from "../../drizzle/schema";
+import { consultationRequests, orders, libraryFiles, users } from "../../drizzle/schema";
 import { logger } from "./logger";
 
 /**
@@ -117,19 +117,14 @@ export async function deleteUserLibraryFiles(userId: number): Promise<number> {
 
 /**
  * Delete user notifications
- * These cascade, but we delete explicitly for clarity
+ * Note: Notifications table may not exist in all schemas.
+ * If notifications are stored elsewhere, this function can be updated.
  */
 export async function deleteUserNotifications(userId: number): Promise<number> {
-  const dbClient = await db.getDb();
-  if (!dbClient) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
-
-  const result = await dbClient
-    .delete(notifications)
-    .where(eq(notifications.userId, userId))
-    .returning({ id: notifications.id });
-
-  logger.info("User notifications deleted", { userId, count: result.length });
-  return result.length;
+  // Notifications table doesn't exist in current schema
+  // If notifications are handled via a different system, update this function accordingly
+  logger.info("User notifications deletion skipped (notifications table not in schema)", { userId });
+  return 0;
 }
 
 /**
@@ -164,7 +159,7 @@ export async function deleteUserAccount(userId: number): Promise<void> {
   // 3. Delete user-owned library files (advisor→user 1:1 files)
   await deleteUserLibraryFiles(userId);
 
-  // 4. Delete notifications
+  // 4. Delete notifications (if applicable)
   await deleteUserNotifications(userId);
 
   // 5. Delete user record (cascades to all related data)

@@ -103,16 +103,12 @@ export async function isPaymentCompleted(orderId: number): Promise<boolean> {
     return false;
   }
 
-  const order = await dbClient
-    .select()
-    .from(orders)
-    .where(db.eq(orders.id, orderId))
-    .limit(1);
+  const order = await db.getOrderById(orderId);
 
-  if (order.length === 0) {
+  if (!order) {
     return false;
   }
 
-  return order[0].status === "completed";
+  return order.status === "completed";
 }
 

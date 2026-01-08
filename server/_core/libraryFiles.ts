@@ -16,14 +16,8 @@ export function assertLibraryFileAccess(user: any, file: any) {
 }
 
 async function ensureAdvisorAssignment(advisorId: number, consultationId: number) {
-  const dbClient = await db.getDb();
-  if (!dbClient) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
-  const assignment = await dbClient
-    .select()
-    .from(db.requestAssignments)
-    .where(db.eq(db.requestAssignments.consultationId as any, consultationId));
-  const matched = assignment.find((a: any) => a.advisorId === advisorId);
-  if (!matched) {
+  const isAssigned = await db.isAdvisorAssignedToConsultation(advisorId, consultationId);
+  if (!isAssigned) {
     throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إرسال ملف لهذا الطلب." });
   }
 }
@@ -64,7 +58,7 @@ export async function uploadLibraryFile(params: {
 
   const safeName = params.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
   const path = `library/${Date.now()}_${safeName}`;
-  const { data, error } = await supabase.storage.from("consultations").createSignedUploadUrl(path, 300);
+  const { data, error } = await supabase.storage.from("consultations").createSignedUploadUrl(path, { expiresIn: 300 });
   if (error || !data?.signedUrl) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "تعذر إنشاء رابط الرفع." });
   }

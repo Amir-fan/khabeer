@@ -549,6 +549,17 @@ export async function getOrderByRequest(requestId: number) {
   return result[0] || null;
 }
 
+/**
+ * Get order by ID
+ * Returns order if found, null otherwise
+ */
+export async function getOrderById(orderId: number) {
+  const dbInstance = await getDb();
+  if (!dbInstance) return null;
+  const result = await dbInstance.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  return result[0] || null;
+}
+
 // ============ Library Files ============
 export async function createLibraryFile(data: InsertLibraryFile) {
   const dbInstance = await getDb();
@@ -1413,6 +1424,26 @@ export async function listAssignmentsForAdvisor(advisorId: number) {
     .from(requestAssignments)
     .where(eq(requestAssignments.advisorId, advisorId))
     .orderBy(desc(requestAssignments.createdAt));
+}
+
+/**
+ * Check if advisor is assigned to a consultation request
+ * Returns true if assignment exists, false otherwise
+ */
+export async function isAdvisorAssignedToConsultation(advisorId: number, consultationId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db
+    .select({ id: requestAssignments.id })
+    .from(requestAssignments)
+    .where(
+      and(
+        eq(requestAssignments.advisorId, advisorId),
+        eq(requestAssignments.requestId, consultationId)
+      )
+    )
+    .limit(1);
+  return result.length > 0;
 }
 
 // ============ Consultation messages ============
