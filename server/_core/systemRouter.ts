@@ -56,7 +56,7 @@ export const systemRouter = router({
     .input(
       z.object({
         gateway: z.enum(["myfatoorah", "stripe", "tap", "inapp"]),
-        settings: z.record(z.any()),
+        settings: z.record(z.string(), z.any()),
       }),
     )
     .mutation(async ({ input }) => {
@@ -134,7 +134,7 @@ export const systemRouter = router({
   listWithdrawals: adminProcedure
     .input(z.object({ status: z.string().optional() }).optional())
     .query(async ({ input }) => {
-      const { listAllWithdrawals } = await import("./withdrawals");
+      const { listAllWithdrawals } = await import("./withdrawals.js");
       return listAllWithdrawals(input?.status);
     }),
 
@@ -142,7 +142,7 @@ export const systemRouter = router({
     .input(z.object({ withdrawalId: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Unauthorized");
-      const { approveWithdrawal } = await import("./withdrawals");
+      const { approveWithdrawal } = await import("./withdrawals.js");
       return approveWithdrawal({
         withdrawalId: input.withdrawalId,
         adminUserId: ctx.user.id,
@@ -158,7 +158,7 @@ export const systemRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Unauthorized");
-      const { rejectWithdrawal } = await import("./withdrawals");
+      const { rejectWithdrawal } = await import("./withdrawals.js");
       return rejectWithdrawal({
         withdrawalId: input.withdrawalId,
         adminUserId: ctx.user.id,

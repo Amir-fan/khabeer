@@ -86,7 +86,7 @@ export function validateEnvironmentOnStartup(): void {
 
   // Log errors
   result.errors.forEach((error) => {
-    logger.error("Environment variable error", { error });
+    logger.error("Environment variable error", new Error(error));
   });
 
   // Throw in production if invalid

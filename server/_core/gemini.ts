@@ -91,7 +91,7 @@ export async function invokeGemini(params: {
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error("Gemini API error", { status: response.status, error: errorText });
+      logger.error("Gemini API error", new Error(errorText), { status: response.status });
       throw new Error(`AI service error: ${response.status} ${response.statusText}`);
     }
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc } from "drizzle-orm";
-import { requestAssignments, consultationRequests, advisorRatings, requestTransitions, orders } from "../drizzle/schema";
+import { requestAssignments, consultationRequests, advisorRatings, requestTransitions, orders, notifications } from "../drizzle/schema";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -3012,10 +3012,7 @@ ${input.fileContent}
       .query(async ({ input }) => {
         const dbClient = await db.getDb();
         if (!dbClient) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
-        
-        const { notifications } = await import("../../drizzle/schema");
-        const { desc } = await import("drizzle-orm");
-        
+
         const result = await dbClient
           .select()
           .from(notifications)
@@ -3029,10 +3026,7 @@ ${input.fileContent}
     adminMarkAllRead: adminProcedure.mutation(async () => {
       const dbClient = await db.getDb();
       if (!dbClient) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
-      
-      const { notifications } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      
+
       // Mark all unread notifications as read
       await dbClient
         .update(notifications)
@@ -3410,7 +3404,7 @@ ${input.fileContent}
     enforceExpiration: adminProcedure
       .input(z.object({ userIds: z.array(z.number()).optional() }).optional())
       .mutation(async ({ input }) => {
-        const { batchEnforceSubscriptionExpiration } = await import("./_core/subscriptionEnforcement");
+        const { batchEnforceSubscriptionExpiration } = await import("./_core/subscriptionEnforcement.js");
         const count = await batchEnforceSubscriptionExpiration(input?.userIds);
         return { usersDowngraded: count };
       }),
