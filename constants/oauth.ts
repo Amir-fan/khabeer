@@ -1,5 +1,6 @@
 import * as Linking from "expo-linking";
 import * as ReactNative from "react-native";
+import Constants from "expo-constants";
 
 // Extract scheme from bundle ID (last segment timestamp, prefixed with "manus")
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
@@ -25,6 +26,36 @@ export const OWNER_OPEN_ID = env.ownerId;
 export const OWNER_NAME = env.ownerName;
 export const API_BASE_URL = env.apiBaseUrl;
 
+function normalizeApiBaseUrl(value: string): string {
+  let v = (value ?? "").trim();
+  if (!v) return "";
+  // Allow user to provide either "https://host" or "https://host/api"
+  v = v.replace(/\/+$/, "");
+  v = v.replace(/\/api$/i, "");
+  return v.replace(/\/+$/, "");
+}
+
+function inferNativeDevApiBaseUrl(): string {
+  // In Expo Go / dev builds, we can often derive the device-reachable host from the debugger host.
+  // Example hostUri/debuggerHost: "192.168.1.22:8081" -> API: "http://192.168.1.22:3000"
+  const apiPort = env.apiPort || "3000";
+
+  const hostUri =
+    (Constants as any)?.expoConfig?.hostUri ??
+    (Constants as any)?.expoGoConfig?.debuggerHost ??
+    (Constants as any)?.manifest?.debuggerHost ??
+    (Constants as any)?.manifest2?.extra?.expoClient?.debuggerHost ??
+    "";
+
+  const host = String(hostUri).split(":")[0];
+  if (!host) return "";
+
+  // Expo tunnel hosts (exp.direct / ngrok) cannot be mapped to a local API port.
+  if (host.includes(".exp.direct") || host.includes(".ngrok")) return "";
+
+  return `http://${host}:${apiPort}`;
+}
+
 /**
  * Get the API base URL, deriving from current hostname if not set.
  * Metro runs on 8081, API server runs on 3000.
@@ -33,7 +64,7 @@ export const API_BASE_URL = env.apiBaseUrl;
 export function getApiBaseUrl(): string {
   // If API_BASE_URL is set, use it
   if (API_BASE_URL) {
-    return API_BASE_URL.replace(/\/$/, "");
+    return normalizeApiBaseUrl(API_BASE_URL);
   }
 
   // On web (Expo dev server often runs on 11000), map to the API port
@@ -43,11 +74,17 @@ export function getApiBaseUrl(): string {
 
     // If the current host has an explicit port (e.g., 11000), keep host and swap port to API
     if (window.location.port) {
-      return `${protocol}//${hostname}:${apiPort}`;
+      return normalizeApiBaseUrl(`${protocol}//${hostname}:${apiPort}`);
     }
 
     // Otherwise fallback to same host with API port
-    return `${protocol}//${hostname}:${apiPort}`;
+    return normalizeApiBaseUrl(`${protocol}//${hostname}:${apiPort}`);
+  }
+
+  // Native: best-effort dev fallback (LAN only)
+  if (ReactNative.Platform.OS !== "web") {
+    const inferred = inferNativeDevApiBaseUrl();
+    if (inferred) return normalizeApiBaseUrl(inferred);
   }
 
   // Fallback to empty (will use relative URL)

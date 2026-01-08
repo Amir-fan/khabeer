@@ -33,6 +33,19 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
   }
 
   const baseUrl = getApiBaseUrl();
+  // On native, we must have an absolute base URL (or an inferred LAN dev URL) to reach the backend.
+  // If it's missing, relative "/api/..." requests will hit Metro (8081) and return non-JSON ("Not Found"),
+  // which then crashes parsing.
+  if (Platform.OS !== "web" && !baseUrl && /^\/?api\//i.test(endpoint)) {
+    throw new Error(
+      [
+        "API base URL is not configured for mobile.",
+        "Set EXPO_PUBLIC_API_BASE_URL to your backend (e.g. https://your-vercel-domain.vercel.app).",
+        "Then restart Expo (`npx expo start -c`).",
+      ].join(" "),
+    );
+  }
+
   // Ensure no double slashes between baseUrl and endpoint
   const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
@@ -79,7 +92,23 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
 
     const text = await response.text();
     console.log("[API] Text response received");
-    return (text ? JSON.parse(text) : {}) as T;
+    if (!text) return {} as T;
+    // Some servers (or Metro) return plain text/HTML on success-ish paths; do not blindly JSON.parse.
+    // Try to parse JSON only if it looks like JSON; otherwise throw an actionable error.
+    const looksLikeJson = /^\s*[\[{]/.test(text);
+    if (looksLikeJson) {
+      try {
+        return JSON.parse(text) as T;
+      } catch (e) {
+        throw new Error(
+          `Failed to parse JSON from ${url}. content-type=${contentType ?? "unknown"} body=${text.slice(0, 200)}`,
+        );
+      }
+    }
+
+    throw new Error(
+      `Expected JSON from ${url} but got ${contentType ?? "unknown"}: ${text.slice(0, 200)}`,
+    );
   } catch (error) {
     console.error("[API] Request failed:", error);
     if (error instanceof Error) {

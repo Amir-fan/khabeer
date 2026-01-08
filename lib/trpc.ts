@@ -4,6 +4,7 @@ import superjson from "superjson";
 import type { AppRouter } from "@/server/routers";
 import { getApiBaseUrl } from "@/constants/oauth";
 import * as Auth from "@/lib/_core/auth";
+import { Platform } from "react-native";
 
 /**
  * tRPC React client for type-safe API calls.
@@ -19,10 +20,20 @@ export const trpc = createTRPCReact<AppRouter>();
  * Call this once in your app's root layout.
  */
 export function createTRPCClient() {
+  const baseUrl = getApiBaseUrl();
+  if (Platform.OS !== "web" && !baseUrl) {
+    throw new Error(
+      [
+        "EXPO_PUBLIC_API_BASE_URL is missing on mobile.",
+        "Set it to your backend base URL (no /api), then restart Expo (`npx expo start -c`).",
+      ].join(" "),
+    );
+  }
+
   return trpc.createClient({
     links: [
       httpBatchLink({
-        url: `${getApiBaseUrl()}/api/trpc`,
+        url: `${baseUrl}/api/trpc`,
         // tRPC v11: transformer MUST be inside httpBatchLink, not at root
         transformer: superjson,
         async headers() {
