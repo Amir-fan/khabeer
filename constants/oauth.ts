@@ -35,6 +35,16 @@ function normalizeApiBaseUrl(value: string): string {
   return v.replace(/\/+$/, "");
 }
 
+function getExtraApiBaseUrl(): string {
+  const extra =
+    (Constants as any)?.expoConfig?.extra ??
+    (Constants as any)?.expoGoConfig?.extra ??
+    (Constants as any)?.manifest?.extra ??
+    (Constants as any)?.manifest2?.extra ??
+    {};
+  return normalizeApiBaseUrl(String((extra as any)?.apiBaseUrl ?? ""));
+}
+
 function inferNativeDevApiBaseUrl(): string {
   // In Expo Go / dev builds, we can often derive the device-reachable host from the debugger host.
   // Example hostUri/debuggerHost: "192.168.1.22:8081" -> API: "http://192.168.1.22:3000"
@@ -67,6 +77,10 @@ export function getApiBaseUrl(): string {
     return normalizeApiBaseUrl(API_BASE_URL);
   }
 
+  // EAS Update / production native clients: read from app.config.ts `extra.apiBaseUrl`
+  const extraApi = getExtraApiBaseUrl();
+  if (extraApi) return extraApi;
+
   // On web (Expo dev server often runs on 11000), map to the API port
   if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
     const { protocol, hostname } = window.location;
@@ -87,7 +101,12 @@ export function getApiBaseUrl(): string {
     if (inferred) return normalizeApiBaseUrl(inferred);
   }
 
-  // Fallback to empty (will use relative URL)
+  // Native production fallback: prevent hard-crashes if env isn't injected.
+  if (ReactNative.Platform.OS !== "web" && typeof __DEV__ !== "undefined" && !__DEV__) {
+    return "https://khabeerr.vercel.app";
+  }
+
+  // Fallback to empty (web can use relative URL)
   return "";
 }
 

@@ -117,6 +117,9 @@ const config: ExpoConfig = {
     eas: {
       projectId: "628ac244-7cb2-4e69-aa8c-aed951453f35",
     },
+    // Used by native clients (especially EAS Update) when EXPO_PUBLIC_* env vars are not
+    // available at runtime. Keep this as the canonical production API base URL fallback.
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://khabeerr.vercel.app",
   },
 };
 

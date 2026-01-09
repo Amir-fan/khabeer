@@ -21,14 +21,9 @@ export const trpc = createTRPCReact<AppRouter>();
  */
 export function createTRPCClient() {
   const baseUrl = getApiBaseUrl();
-  if (Platform.OS !== "web" && !baseUrl) {
-    throw new Error(
-      [
-        "EXPO_PUBLIC_API_BASE_URL is missing on mobile.",
-        "Set it to your backend base URL (no /api), then restart Expo (`npx expo start -c`).",
-      ].join(" "),
-    );
-  }
+  // `getApiBaseUrl()` provides a production fallback for native builds (EAS Update),
+  // so don't hard-crash here. If it's still empty (should only happen on web/edge cases),
+  // requests will fail with a clear API error message downstream.
 
   return trpc.createClient({
     links: [
