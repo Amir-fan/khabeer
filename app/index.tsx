@@ -282,6 +282,9 @@ export default function HomeScreen() {
   const [placeholder, setPlaceholder] = useState("اكتب سؤالك هنا...");
   const INPUT_BAR_HEIGHT = 84;
   const effectiveKeyboardHeight = Math.max(0, keyboardHeight - insets.bottom);
+  const isAdmin = user?.role === "admin";
+  const isPaidTier = user?.tier === "pro" || user?.tier === "enterprise";
+  const shouldShowAttemptsBanner = isGuestMode || (isAuthenticated && !isAdmin && !isPaidTier);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -684,7 +687,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Remaining Attempts Banner */}
-        {(isGuestMode || (user?.role !== "pro" && user?.role !== "admin")) && (
+        {shouldShowAttemptsBanner && (
           <View style={styles.attemptsBanner}>
             <View style={styles.attemptsContent}>
               <Text style={styles.attemptsText}>
