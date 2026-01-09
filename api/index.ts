@@ -82,7 +82,30 @@ async function initializeServer() {
   });
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, timestamp: Date.now() });
+    res.json({
+      ok: true,
+      timestamp: Date.now(),
+      commit:
+        process.env.VERCEL_GIT_COMMIT_SHA ??
+        process.env.VERCEL_GITHUB_COMMIT_SHA ??
+        process.env.GITHUB_SHA ??
+        null,
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
+    });
+  });
+
+  // Build info for debugging deployments
+  app.get("/api/version", (_req, res) => {
+    res.json({
+      commit:
+        process.env.VERCEL_GIT_COMMIT_SHA ??
+        process.env.VERCEL_GITHUB_COMMIT_SHA ??
+        process.env.GITHUB_SHA ??
+        null,
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
+      node: process.version,
+      now: new Date().toISOString(),
+    });
   });
 
   // Add logging middleware to debug tRPC requests (only in development)
