@@ -1727,42 +1727,60 @@ export const appRouter = router({
           const shouldUseMemory = aiSettings.memoryEnabled && !!ctx.user;
 
           if (ctx.user && shouldUseMemory) {
-            if (conversationId) {
-              const existing = await db.getConversation(conversationId);
-              if (!existing || existing.userId !== ctx.user.id) {
-                throw new TRPCError({
-                  code: "FORBIDDEN",
-                  message: "المحادثة غير متاحة.",
+            // Conversation persistence is a nice-to-have. If DB has issues, we should still answer.
+            try {
+              if (conversationId) {
+                const existing = await db.getConversation(conversationId);
+                if (!existing || existing.userId !== ctx.user.id) {
+                  throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "المحادثة غير متاحة.",
+                  });
+                }
+              }
+
+              // Create if none was provided
+              if (!conversationId) {
+                conversationId = await db.createConversation({
+                  userId: ctx.user.id,
+                  context: input.context || "general",
+                  title: undefined,
                 });
               }
-            }
 
-            // Create if none was provided
-            if (!conversationId) {
-              conversationId = await db.createConversation({
-                userId: ctx.user.id,
-                context: input.context || "general",
-                title: undefined,
+              // Persist user message first
+              userMessageId = await db.addMessage({
+                conversationId,
+                role: "user",
+                content: input.message,
+                sources: null,
               });
-            }
+              await db.updateConversation(conversationId, { updatedAt: new Date() });
 
-            // Persist user message first
-            userMessageId = await db.addMessage({
-              conversationId,
-              role: "user",
-              content: input.message,
-              sources: null,
-            });
-            await db.updateConversation(conversationId, { updatedAt: new Date() });
-
-            // Load recent context (bounded memory)
-            const history = await db.getRecentConversationMessages(conversationId, HISTORY_LIMIT);
-            const orderedHistory = history.reverse(); // chronological
-            historyText = orderedHistory
-              .map((m) => `${m.role === "assistant" ? "مساعد" : "مستخدم"}: ${m.content}`)
-              .join("\n");
-            if (historyText.length > HISTORY_CHAR_CAP) {
-              historyText = historyText.slice(-HISTORY_CHAR_CAP); // safety cap on characters
+              // Load recent context (bounded memory)
+              const history = await db.getRecentConversationMessages(conversationId, HISTORY_LIMIT);
+              const orderedHistory = history.reverse(); // chronological
+              historyText = orderedHistory
+                .map((m) => `${m.role === "assistant" ? "مساعد" : "مستخدم"}: ${m.content}`)
+                .join("\n");
+              if (historyText.length > HISTORY_CHAR_CAP) {
+                historyText = historyText.slice(-HISTORY_CHAR_CAP); // safety cap on characters
+              }
+            } catch (persistenceError) {
+              if (persistenceError instanceof TRPCError) {
+                throw persistenceError;
+              }
+              logger.warn("AI chat persistence unavailable; continuing without memory", {
+                userId: ctx.user.id,
+                conversationId,
+                error:
+                  persistenceError instanceof Error
+                    ? persistenceError.message
+                    : String(persistenceError),
+              });
+              conversationId = undefined;
+              historyText = "";
+              userMessageId = undefined;
             }
           }
           // For guests or when memory disabled: no conversation persistence, no history
