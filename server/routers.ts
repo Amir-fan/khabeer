@@ -1907,11 +1907,17 @@ export const appRouter = router({
             messageIds: ctx.user && userMessageId && assistantMessageId ? { userMessageId, assistantMessageId } : undefined,
           };
         } catch (error) {
+          // If it's an expected/user-facing error (limits, auth, validation), propagate it
+          // so the client can display the real message (and e.g. show the upgrade modal).
+          if (error instanceof TRPCError) {
+            throw error;
+          }
+
           logger.error("AI Chat Error", error instanceof Error ? error : new Error(String(error)), {
             message: input.message.substring(0, 100),
             context: input.context,
           });
-          
+
           // Don't expose internal errors to users
           // Short error message without full disclaimers
           return {
