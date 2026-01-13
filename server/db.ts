@@ -598,7 +598,9 @@ export async function listLibraryFilesVisibleToUser(user: User | null) {
     return dbInstance
       .select()
       .from(libraryFiles)
-      .where(eq(libraryFiles.isPublic, true))
+      // Avoid boolean bind edge-cases by using a boolean literal string.
+      // Postgres will cast 'true' to boolean for comparison with a boolean column.
+      .where(eq(libraryFiles.isPublic, "true" as any))
       .orderBy(desc(libraryFiles.createdAt));
   }
 
@@ -606,7 +608,7 @@ export async function listLibraryFilesVisibleToUser(user: User | null) {
     .select()
     .from(libraryFiles)
     .where(
-      (eq(libraryFiles.isPublic, true) as any).or(eq(libraryFiles.targetUserId, user.id))
+      ((eq(libraryFiles.isPublic, "true" as any) as any).or(eq(libraryFiles.targetUserId, user.id)))
     )
     .orderBy(desc(libraryFiles.createdAt));
 }
@@ -1306,16 +1308,20 @@ export async function getTierLimitByTier(tier: typeof userTierEnum.enumValues[nu
 export async function getOrCreateUsageCounter(userId: number, usageDate: Date) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // `usage_counters.usageDate` is a Postgres DATE column (pg-core `date()` defaults to string mode).
+  // Passing a JS Date into postgres-js via Drizzle causes a bind error.
+  // Normalize to YYYY-MM-DD (UTC) for safe DATE comparisons/inserts.
+  const usageDateKey = usageDate.toISOString().slice(0, 10);
   const existing = await db
     .select()
     .from(usageCounters)
-    .where(and(eq(usageCounters.userId, userId), eq(usageCounters.usageDate, usageDate as any)))
+    .where(and(eq(usageCounters.userId, userId), eq(usageCounters.usageDate, usageDateKey as any)))
     .limit(1);
   if (existing.length > 0) return existing[0];
 
   const result = await db
     .insert(usageCounters)
-    .values({ userId, usageDate: usageDate as any })
+    .values({ userId, usageDate: usageDateKey as any })
     .returning({
       id: usageCounters.id,
       aiUsed: usageCounters.aiUsed,

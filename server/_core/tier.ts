@@ -32,9 +32,11 @@ async function checkAndIncrement({
   const limitValue = field === "ai" ? limits.aiDailyLimit : limits.advisorChatDailyLimit;
 
   if (limitValue === null || limitValue === undefined) {
-    // unlimited
+    // unlimited (still track usage for analytics + accurate UI)
+    const usage = await getOrCreateUsageCounter(userId, todayUtc());
+    const current = field === "ai" ? usage.aiUsed : usage.advisorChatUsed;
     await incrementUsageCounter(userId, todayUtc(), { [field]: amount });
-    return { allowed: true, limit: null, used: 0, remaining: null };
+    return { allowed: true, limit: null, used: current + amount, remaining: null };
   }
 
   const usage = await getOrCreateUsageCounter(userId, todayUtc());
@@ -104,8 +106,10 @@ async function checkUsageWithoutIncrement({
   const limitValue = field === "ai" ? limits.aiDailyLimit : limits.advisorChatDailyLimit;
 
   if (limitValue === null || limitValue === undefined) {
-    // unlimited
-    return { allowed: true, limit: null, used: 0, remaining: null };
+    // unlimited (still show real usage count)
+    const usage = await getOrCreateUsageCounter(userId, todayUtc());
+    const current = field === "ai" ? usage.aiUsed : usage.advisorChatUsed;
+    return { allowed: true, limit: null, used: current, remaining: null };
   }
 
   const usage = await getOrCreateUsageCounter(userId, todayUtc());
