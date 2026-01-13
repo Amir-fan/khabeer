@@ -1515,9 +1515,19 @@ export const appRouter = router({
       });
       const list = Array.from(dedup.values());
 
-      const isNew = (r: any) => r.request.status === "pending_advisor";
-      const isActive = (r: any) => ["accepted", "in_progress", "paid"].includes(r.request.status as string);
-      const isCompleted = (r: any) => ["closed", "rated"].includes(r.request.status as string);
+      // Partner must not see phantom/unassigned consultations:
+      // - New: only if this advisor is currently "offered" the request and the request is still pending_advisor (not assigned yet)
+      // - Active/Completed: only if the request is actually assigned to this advisor (request.advisorId === advisor.id)
+      // - Exclude declined/expired offers entirely
+      const isNew = (r: any) =>
+        r.assignmentStatus === "offered" &&
+        r.request.status === "pending_advisor" &&
+        (r.request.advisorId === null || r.request.advisorId === undefined);
+      const isActive = (r: any) =>
+        r.request.advisorId === advisor.id &&
+        ["accepted", "payment_reserved", "in_progress", "paid", "awaiting_payment"].includes(r.request.status as string);
+      const isCompleted = (r: any) =>
+        r.request.advisorId === advisor.id && ["completed", "closed", "rated", "released"].includes(r.request.status as string);
 
       const toShape = (r: any) => ({
         assignmentId: r.assignmentId,
@@ -1529,9 +1539,10 @@ export const appRouter = router({
         advisorId: r.request.advisorId,
       });
 
-      const newOrders = list.filter(isNew).map(toShape);
-      const activeOrders = list.filter(isActive).map(toShape);
-      const completedOrders = list.filter(isCompleted).map(toShape);
+      const filtered = list.filter((r: any) => !["declined", "expired"].includes(r.assignmentStatus));
+      const newOrders = filtered.filter(isNew).map(toShape);
+      const activeOrders = filtered.filter(isActive).map(toShape);
+      const completedOrders = filtered.filter(isCompleted).map(toShape);
 
       return {
         advisorId: advisor.id,

@@ -1003,21 +1003,40 @@
 
     async function loadEarnings() {
       try {
+        // Earnings MUST be real:
+        // - Totals: released-only (partner.earnings already filters released consultations)
+        // - Available balance: ledger-based (released - pending withdrawals)
         const data = await trpc("GET", "partner.earnings", {});
+        const balance = await trpc("GET", "partner.getBalance", {});
+        const withdrawals = await trpc("GET", "partner.listWithdrawals", {});
         const toKwd = (v) => (v || 0).toFixed(3) + " د.ك";
         const setText = (id, val) => {
           const el = document.getElementById(id);
           if (el) el.textContent = val;
         };
-        setText("stat-total-earnings", toKwd(data.netAmountKwd || 0));
+        const releasedNet = data?.netAmountKwd || 0;
+        const available = balance?.availableKwd ?? balance?.balanceKwd ?? 0;
+
+        const withdrawing = Array.isArray(withdrawals)
+          ? withdrawals
+              .filter((w) => ["pending", "approved", "processing"].includes(w.status))
+              .reduce((sum, w) => sum + (w.amountKwd || 0), 0)
+          : 0;
+
+        setText("stat-total-earnings", toKwd(releasedNet));
         setText("summary-revenue", toKwd(data.grossAmountKwd || 0));
         setText("summary-fees", "-" + toKwd(data.platformFeeKwd || 0));
-        setText("summary-net", toKwd(data.netAmountKwd || 0));
-        setText("balance-available", toKwd(data.netAmountKwd || 0));
+        setText("summary-net", toKwd(releasedNet));
+
+        // Balance breakdown (no fake balances)
+        setText("balance-available", toKwd(available));
+        setText("balance-withdrawing", toKwd(withdrawing));
+        setText("balance-pending", toKwd(0));
+
         const balEl = document.getElementById("availableBalance");
-        if (balEl) balEl.textContent = toKwd(data.netAmountKwd || 0);
+        if (balEl) balEl.textContent = toKwd(available);
         const earnEl = document.getElementById("earnings-available");
-        if (earnEl) earnEl.textContent = toKwd(data.netAmountKwd || 0);
+        if (earnEl) earnEl.textContent = toKwd(available);
       } catch (e) {
         alert(e.message);
       }
