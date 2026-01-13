@@ -420,10 +420,13 @@ export const appRouter = router({
           const hashedPassword = await hashPassword(input.password);
 
           // Create new user with minimal identity footprint
-        const user = await db.createUser({
-          email: input.email,
+          // SECURITY: Never accept role from client input.
+          // All public registrations are forced to "user".
+          // Admin accounts must be created via seed or admin-only internal tooling.
+          const user = await db.createUser({
+            email: input.email,
             passwordHash: hashedPassword,
-            role: input.role ?? "user",
+            role: "user",
           });
 
           logger.info("User registered", { userId: user.id, email: input.email });
