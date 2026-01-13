@@ -231,20 +231,22 @@ export default function PackagesScreen() {
         </Text>
       </View>
 
-      {/* Packages */}
+      {/* Packages Grid */}
       <ScrollView 
         style={styles.packagesContainer}
         contentContainerStyle={styles.packagesContent}
         showsVerticalScrollIndicator={false}
       >
-        {packages.map((pkg, index) => (
-          <Animated.View
-            key={pkg.id}
-            style={[
-              styles.packageWrapper,
-              { transform: [{ scale: scaleAnims[index] }] },
-            ]}
-          >
+        <View style={styles.packagesGrid}>
+          {packages.map((pkg, index) => (
+            <Animated.View
+              key={pkg.id}
+              style={[
+                styles.packageWrapper,
+                styles.packageGridItem,
+                { transform: [{ scale: scaleAnims[index] }] },
+              ]}
+            >
             <Pressable
               onPress={() => handleSelectPackage(pkg.id, index)}
               style={({ pressed }) => [{ opacity: pressed ? 0.95 : 1 }]}
@@ -268,61 +270,54 @@ export default function PackagesScreen() {
                   </View>
                 )}
 
-                {/* Package Header */}
-                <View style={styles.packageHeader}>
-                  <View style={[styles.iconCircle, { backgroundColor: pkg.accentColor + "15" }]}>
+                {/* Package Header - Compact for grid */}
+                <View style={styles.packageHeaderCompact}>
+                  <View style={[styles.iconCircleCompact, { backgroundColor: pkg.accentColor + "15" }]}>
                     {renderIcon(pkg.icon || "gift", pkg.accentColor)}
                   </View>
-                  <View style={styles.packageTitles}>
-                    <Text style={[styles.packageName, { color: pkg.accentColor }]}>{pkg.name}</Text>
-                    <Text style={styles.packageNameEn}>{pkg.nameEn}</Text>
-                  </View>
+                  <Text style={[styles.packageNameCompact, { color: pkg.accentColor }]} numberOfLines={1}>
+                    {pkg.name}
+                  </Text>
                 </View>
 
-                {/* Price */}
-                <View style={styles.priceContainer}>
+                {/* Price - Compact */}
+                <View style={styles.priceContainerCompact}>
                   {pkg.price !== null ? (
                     <>
-                      <Text style={[styles.priceValue, { color: pkg.accentColor }]}>{pkg.price}</Text>
-                      <View style={styles.priceDetails}>
-                        <Text style={styles.priceCurrency}>{pkg.currency}</Text>
-                        <Text style={styles.pricePeriod}>/ {pkg.period}</Text>
-                      </View>
+                      <Text style={[styles.priceValueCompact, { color: pkg.accentColor }]}>{pkg.price}</Text>
+                      <Text style={styles.priceCurrencyCompact}>{pkg.currency}</Text>
                     </>
                   ) : (
-                    <>
-                      <Text style={[styles.priceRange, { color: pkg.accentColor }]}>{pkg.priceRange}</Text>
-                      <View style={styles.priceDetails}>
-                        <Text style={styles.priceCurrency}>{pkg.currency}</Text>
-                        <Text style={styles.pricePeriod}>/ {pkg.period}</Text>
-                      </View>
-                    </>
+                    <Text style={[styles.priceRangeCompact, { color: pkg.accentColor }]}>{pkg.priceRange}</Text>
                   )}
                 </View>
 
-                <Text style={styles.packageDescription}>{pkg.description}</Text>
+                <Text style={styles.packageDescriptionCompact} numberOfLines={2}>{pkg.description}</Text>
 
-                {/* Features */}
-                <View style={styles.featuresContainer}>
-                  {pkg.features.map((feature, fIndex) => (
-                    <View key={fIndex} style={styles.featureRow}>
+                {/* Features - Compact (show only first 3) */}
+                <View style={styles.featuresContainerCompact}>
+                  {pkg.features.slice(0, 3).map((feature, fIndex) => (
+                    <View key={fIndex} style={styles.featureRowCompact}>
                       <View style={[
-                        styles.featureIconContainer,
+                        styles.featureIconContainerCompact,
                         { backgroundColor: feature.included ? "#DCFCE7" : "#F1F5F9" }
                       ]}>
                         {feature.included ? Icons.check("#22C55E") : Icons.x("#94A3B8")}
                       </View>
                       <Text style={[
-                        styles.featureText,
+                        styles.featureTextCompact,
                         !feature.included && styles.featureTextDisabled,
-                      ]}>
+                      ]} numberOfLines={1}>
                         {feature.text}
                       </Text>
                     </View>
                   ))}
+                  {pkg.features.length > 3 && (
+                    <Text style={styles.moreFeaturesText}>+{pkg.features.length - 3} أكثر</Text>
+                  )}
                 </View>
 
-                {/* Subscribe Button */}
+                {/* Subscribe Button - Compact */}
                 <Pressable
                   onPress={() => !pkg.buttonDisabled && handleSubscribe(pkg)}
                   disabled={pkg.buttonDisabled}
@@ -333,18 +328,18 @@ export default function PackagesScreen() {
                       colors={["#A91D4A", "#8B1538"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={styles.subscribeButtonGradient}
+                      style={styles.subscribeButtonGradientCompact}
                     >
-                      <Text style={styles.subscribeButtonTextWhite}>{pkg.buttonText}</Text>
+                      <Text style={styles.subscribeButtonTextWhiteCompact}>{pkg.buttonText}</Text>
                     </LinearGradient>
                   ) : (
                     <View style={[
-                      styles.subscribeButton,
+                      styles.subscribeButtonCompact,
                       pkg.buttonDisabled && styles.subscribeButtonDisabled,
                       !pkg.buttonDisabled && { borderColor: pkg.accentColor },
                     ]}>
                       <Text style={[
-                        styles.subscribeButtonText,
+                        styles.subscribeButtonTextCompact,
                         pkg.buttonDisabled && styles.subscribeButtonTextDisabled,
                         !pkg.buttonDisabled && { color: pkg.accentColor },
                       ]}>
@@ -356,7 +351,8 @@ export default function PackagesScreen() {
               </View>
             </Pressable>
           </Animated.View>
-        ))}
+          ))}
+        </View>
 
         {/* Footer Note */}
         <View style={styles.footerNote}>
@@ -416,12 +412,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
+  packagesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   packageWrapper: {
     marginBottom: 16,
   },
+  packageGridItem: {
+    width: (SCREEN_WIDTH - 44) / 3, // 3 columns: screen width - padding (32) - gaps (12) / 3
+  },
   packageCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 12,
     position: "relative",
   },
   popularCard: {
@@ -566,5 +571,101 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#94A3B8",
     textAlign: "center",
+  },
+  // Compact styles for 3-column grid
+  packageHeaderCompact: {
+    alignItems: "center",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  iconCircleCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  packageNameCompact: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  priceContainerCompact: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    marginBottom: 8,
+    gap: 4,
+  },
+  priceValueCompact: {
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  priceCurrencyCompact: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  priceRangeCompact: {
+    fontSize: 18,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  packageDescriptionCompact: {
+    fontSize: 11,
+    color: "#64748B",
+    marginBottom: 12,
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  featuresContainerCompact: {
+    gap: 6,
+    marginBottom: 16,
+  },
+  featureRowCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  featureIconContainerCompact: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureTextCompact: {
+    fontSize: 10,
+    color: "#374151",
+    flex: 1,
+  },
+  moreFeaturesText: {
+    fontSize: 10,
+    color: "#8B1538",
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  subscribeButtonGradientCompact: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  subscribeButtonCompact: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
+  },
+  subscribeButtonTextWhiteCompact: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  subscribeButtonTextCompact: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

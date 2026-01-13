@@ -95,6 +95,9 @@ export default function RootLayout() {
             <Stack.Screen name="news" />
             <Stack.Screen name="vault" />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="packages" />
+            <Stack.Screen name="consultant-request" />
+            <Stack.Screen name="partner-signup" />
           </Stack>
           <StatusBar style="auto" />
         </QueryClientProvider>

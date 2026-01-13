@@ -35,7 +35,7 @@ export default function ProfileScreen() {
       id: "subscription",
       icon: "💎",
       title: "الباقة والاشتراك",
-      subtitle: "الباقة المجانية",
+      subtitle: user?.tier === "pro" ? "باقة Pro" : user?.tier === "enterprise" ? "باقة Enterprise" : "الباقة المجانية",
       onPress: () => router.push("/packages"),
     },
     {
@@ -43,14 +43,27 @@ export default function ProfileScreen() {
       icon: "📜",
       title: "سجل المحادثات",
       subtitle: "عرض المحادثات السابقة",
-      onPress: () => {},
+      onPress: () => {
+        // TODO: Implement conversation history
+        Alert.alert("قريباً", "سيتم إضافة سجل المحادثات قريباً");
+      },
     },
     {
       id: "saved",
       icon: "⭐",
       title: "المحفوظات",
       subtitle: "الأسهم والفتاوى المحفوظة",
-      onPress: () => {},
+      onPress: () => {
+        // TODO: Implement saved items
+        Alert.alert("قريباً", "سيتم إضافة المحفوظات قريباً");
+      },
+    },
+    {
+      id: "partner",
+      icon: "🤝",
+      title: "تقدم للانضمام كشريك",
+      subtitle: "كن شريكاً في منصة خبير",
+      onPress: () => router.push("/partner-signup"),
     },
   ];
 
@@ -172,23 +185,23 @@ export default function ProfileScreen() {
                 </AnimatedPressable>
             </View>
 
-            {/* Stats */}
+            {/* Stats - TODO: Fetch from API */}
               <View className="flex-row mt-6 pt-4 border-t border-white/15">
                 <View className="flex-1 items-center">
                   <Text className="text-white font-bold text-xl">
-                    {formatStat(user?.stats?.conversations)}
+                    —
                   </Text>
                   <Text className="text-white/80 text-xs">محادثة</Text>
                 </View>
                 <View className="flex-1 items-center border-x border-white/15">
                   <Text className="text-white font-bold text-xl">
-                    {formatStat(user?.stats?.files)}
+                    —
                   </Text>
                   <Text className="text-white/80 text-xs">ملف</Text>
                 </View>
                 <View className="flex-1 items-center">
                   <Text className="text-white font-bold text-xl">
-                    {formatStat(user?.stats?.watchlist)}
+                    —
                   </Text>
                   <Text className="text-white/80 text-xs">سهم محفوظ</Text>
                 </View>
