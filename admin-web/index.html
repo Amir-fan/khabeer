@@ -473,6 +473,20 @@
         <div id="news-automation" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 class="text-lg font-bold text-gray-800 mb-4">إعدادات أتمتة الأخبار بالذكاء الاصطناعي</h3>
           
+          <!-- Manual Sync Button -->
+          <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium text-gray-800">مزامنة الأخبار الآن</p>
+                <p class="text-sm text-gray-600">جلب الأخبار من NewsAPI و AAOIFI</p>
+              </div>
+              <button onclick="syncNewsNow()" id="syncNewsBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
+                <span id="syncNewsBtnText">مزامنة الآن</span>
+              </button>
+            </div>
+            <div id="syncNewsStatus" class="mt-3 text-sm hidden"></div>
+          </div>
+          
           <div class="space-y-6">
             <!-- Enable Automation -->
             <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
@@ -2443,6 +2457,44 @@
       if (input.value) {
         alert('تمت إضافة المصدر: ' + input.value);
         input.value = '';
+      }
+    }
+
+    async function syncNewsNow() {
+      const btn = document.getElementById('syncNewsBtn');
+      const btnText = document.getElementById('syncNewsBtnText');
+      const status = document.getElementById('syncNewsStatus');
+      
+      btn.disabled = true;
+      btnText.textContent = 'جاري المزامنة...';
+      status.classList.remove('hidden');
+      status.innerHTML = '<span class="text-blue-600">⏳ جاري جلب الأخبار من NewsAPI و AAOIFI...</span>';
+      
+      try {
+        const result = await trpc("POST", "news.sync", {});
+        const apiAdded = result?.api?.added || 0;
+        const apiSkipped = result?.api?.skipped || 0;
+        const aaoifiAdded = result?.aaoifi?.added || 0;
+        const aaoifiSkipped = result?.aaoifi?.skipped || 0;
+        const total = apiAdded + aaoifiAdded;
+        
+        status.innerHTML = `
+          <span class="text-green-600 font-medium">✅ تمت المزامنة بنجاح!</span>
+          <div class="mt-2 text-sm text-gray-600">
+            <p>📰 NewsAPI: ${apiAdded} جديد، ${apiSkipped} موجود مسبقاً</p>
+            <p>📜 AAOIFI: ${aaoifiAdded} جديد، ${aaoifiSkipped} موجود مسبقاً</p>
+            <p class="font-medium mt-1">📊 إجمالي: ${total} مقال جديد</p>
+          </div>
+        `;
+        
+        showNotification(`تمت إضافة ${total} مقال جديد بنجاح!`, 'success');
+      } catch (error) {
+        console.error('Sync error:', error);
+        status.innerHTML = `<span class="text-red-600">❌ فشلت المزامنة: ${error.message || 'خطأ غير معروف'}</span>`;
+        showNotification('فشلت عملية المزامنة', 'error');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'مزامنة الآن';
       }
     }
 
