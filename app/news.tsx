@@ -116,7 +116,7 @@ export default function NewsScreen() {
   const screenWidth = Dimensions.get("window").width;
   const padding = 32; // 16px on each side
   const gap = 12;
-  const itemWidth = (screenWidth - padding - gap) / 2;
+  const itemWidth = Math.floor((screenWidth - padding - gap) / 2);
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
@@ -206,12 +206,14 @@ export default function NewsScreen() {
 
           {!isLoading && news.length > 0 && (
             <View style={styles.newsGrid}>
-              {news.map((item: any) => (
+              {news.map((item: any, index: number) => (
                 <Animated.View
                   key={item.id}
                   style={[
                     styles.gridItem,
-                    { width: itemWidth },
+                    { 
+                      width: itemWidth,
+                    },
                     {
                       opacity: fadeAnim,
                       transform: [{
@@ -340,11 +342,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "flex-start",
     gap: 12,
-    // RTL support
-    ...(Platform.OS === "web" ? { direction: "rtl" } : {}),
+    width: "100%",
   },
   gridItem: {
     // Width will be set dynamically via inline style
+    marginBottom: 12,
   },
   emptyState: {
     alignItems: "center",

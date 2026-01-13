@@ -56,32 +56,58 @@ interface NewsAPIArticle {
 async function fetchNewsFromAPI(): Promise<NewsAPIArticle[]> {
   try {
     // Search for Islamic finance, banking, sukuk related news
+    // Use broader terms and also try English since Arabic might not have many results
     const queries = [
       "islamic finance",
       "sukuk",
-      "sharia banking",
+      "sharia banking", 
       "islamic banking",
       "halal finance",
+      "finance",
+      "banking",
+      "economy",
+      "business",
     ];
 
     const allArticles: NewsAPIArticle[] = [];
 
     for (const query of queries) {
       try {
-        const url = `${NEWS_API_BASE}/everything?q=${encodeURIComponent(query)}&language=ar&sortBy=publishedAt&pageSize=20&apiKey=${NEWS_API_KEY}`;
-        const response = await fetch(url);
+        // Try Arabic first, then English if Arabic fails
+        const languages = ["ar", "en"];
         
-        if (!response.ok) {
-          logger.warn(`NewsAPI request failed for query "${query}"`, { status: response.status });
-          continue;
-        }
+        for (const lang of languages) {
+          try {
+            const url = `${NEWS_API_BASE}/everything?q=${encodeURIComponent(query)}&language=${lang}&sortBy=publishedAt&pageSize=10&apiKey=${NEWS_API_KEY}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              logger.warn(`NewsAPI request failed for query "${query}" (${lang})`, { 
+                status: response.status,
+                error: errorText.substring(0, 200)
+              });
+              continue;
+            }
 
-        const data = await response.json();
-        if (data.status === "ok" && data.articles) {
-          allArticles.push(...data.articles);
+            const data = await response.json();
+            
+            if (data.status === "error") {
+              logger.warn(`NewsAPI error for query "${query}" (${lang}):`, data.message || "Unknown error");
+              continue;
+            }
+            
+            if (data.status === "ok" && data.articles && Array.isArray(data.articles)) {
+              allArticles.push(...data.articles);
+              logger.info(`Fetched ${data.articles.length} articles for "${query}" (${lang})`);
+              break; // If we got results, no need to try other language
+            }
+          } catch (error) {
+            logger.warn(`Error fetching news for query "${query}" (${lang})`, error instanceof Error ? error : new Error(String(error)));
+          }
         }
       } catch (error) {
-        logger.warn(`Error fetching news for query "${query}"`, error instanceof Error ? error : new Error(String(error)));
+        logger.warn(`Error processing query "${query}"`, error instanceof Error ? error : new Error(String(error)));
       }
     }
 
@@ -90,7 +116,8 @@ async function fetchNewsFromAPI(): Promise<NewsAPIArticle[]> {
       index === self.findIndex((a) => a.title === article.title)
     );
 
-    return uniqueArticles.slice(0, 50); // Limit to 50 articles
+    logger.info(`Total unique articles fetched: ${uniqueArticles.length}`);
+    return uniqueArticles.slice(0, 100); // Increase limit to 100
   } catch (error) {
     logger.error("Failed to fetch news from NewsAPI", error instanceof Error ? error : new Error(String(error)));
     return [];

@@ -2705,25 +2705,44 @@ ${input.fileContent}
      */
     stats: adminProcedure.query(async () => {
       try {
-        const usersCount = await getUsersCount();
-        const conversationsCount = await getConversationsCount();
-        const contractsCount = await getContractsCount();
-        const stocksScreened = await getStocksScreenedCount();
-        const consultations = await getConsultationsSummary();
+        // Try to get all stats, but return partial data if some fail
+        const [usersCount, conversationsCount, contractsCount, stocksScreened, consultations] = await Promise.allSettled([
+          getUsersCount(),
+          getConversationsCount(),
+          getContractsCount(),
+          getStocksScreenedCount(),
+          getConsultationsSummary(),
+        ]);
 
         return {
-          usersCount,
-          conversationsCount,
-          contractsCount,
-          stocksScreened,
-          consultations,
+          usersCount: usersCount.status === "fulfilled" ? usersCount.value : 0,
+          conversationsCount: conversationsCount.status === "fulfilled" ? conversationsCount.value : 0,
+          contractsCount: contractsCount.status === "fulfilled" ? contractsCount.value : 0,
+          stocksScreened: stocksScreened.status === "fulfilled" ? stocksScreened.value : 0,
+          consultations: consultations.status === "fulfilled" ? consultations.value : {
+            total: 0,
+            statusCounts: {},
+            avgRating: null,
+            netRevenueKwd: 0,
+            avgAcceptanceMinutes: null,
+          },
         };
       } catch (error) {
         logger.error("Failed to get admin stats", error instanceof Error ? error : new Error(String(error)), {});
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "فشل في جلب الإحصائيات",
-        });
+        // Return empty stats instead of throwing
+        return {
+          usersCount: 0,
+          conversationsCount: 0,
+          contractsCount: 0,
+          stocksScreened: 0,
+          consultations: {
+            total: 0,
+            statusCounts: {},
+            avgRating: null,
+            netRevenueKwd: 0,
+            avgAcceptanceMinutes: null,
+          },
+        };
       }
     }),
 
