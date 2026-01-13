@@ -1004,7 +1004,7 @@
               <div class="flex items-center gap-3">
                 <button onclick="editNotificationTemplate('registration')" class="text-[#8B1538] hover:bg-[#8B1538] hover:bg-opacity-10 px-3 py-1 rounded-lg text-sm">تعديل القالب</button>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" id="notifRegistrationEnabled" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -1024,7 +1024,7 @@
               <div class="flex items-center gap-3">
                 <button onclick="editNotificationTemplate('purchase')" class="text-[#8B1538] hover:bg-[#8B1538] hover:bg-opacity-10 px-3 py-1 rounded-lg text-sm">تعديل القالب</button>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" id="notifPurchaseEnabled" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -1042,14 +1042,14 @@
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <select class="px-3 py-1 rounded-lg border border-gray-200 text-sm">
+                <select id="notifCartDelay" class="px-3 py-1 rounded-lg border border-gray-200 text-sm">
                   <option>بعد ساعة</option>
                   <option>بعد 24 ساعة</option>
                   <option>بعد 3 أيام</option>
                 </select>
                 <button onclick="editNotificationTemplate('cart')" class="text-[#8B1538] hover:bg-[#8B1538] hover:bg-opacity-10 px-3 py-1 rounded-lg text-sm">تعديل القالب</button>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" id="notifCartEnabled" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -1068,7 +1068,7 @@
               </div>
               <div class="flex items-center gap-3">
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" id="notifUnreadMessagesEnabled" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -1087,7 +1087,7 @@
               </div>
               <div class="flex items-center gap-3">
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" id="notifNewFilesEnabled" checked>
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -2418,16 +2418,16 @@
       document.getElementById('userModal').classList.add('hidden');
     }
 
-    // Notification Templates
+    // ===== Persisted admin settings (no localStorage) =====
+    let notificationAdminTemplates = null;
+    let currentTemplateType = null;
+
+    // Notification Templates (loaded from backend system_settings)
     function editNotificationTemplate(type) {
-      const templates = {
-        registration: { subject: 'مرحباً بك في خبير!', body: 'مرحباً {{name}}،\n\nشكراً لتسجيلك في منصة خبير...' },
-        purchase: { subject: 'تأكيد الاشتراك', body: 'مرحباً {{name}}،\n\nتم تفعيل باقة {{package}} بنجاح...' },
-        cart: { subject: 'أكمل اشتراكك', body: 'مرحباً {{name}}،\n\nلاحظنا أنك لم تكمل عملية الاشتراك...' }
-      };
-      const template = templates[type] || { subject: '', body: '' };
-      document.getElementById('templateSubject').value = template.subject;
-      document.getElementById('templateBody').value = template.body;
+      currentTemplateType = type;
+      const template = notificationAdminTemplates?.[type] || { subject: '', body: '' };
+      document.getElementById('templateSubject').value = template.subject || '';
+      document.getElementById('templateBody').value = template.body || '';
       document.getElementById('templateModal').classList.remove('hidden');
     }
 
@@ -2435,17 +2435,132 @@
       document.getElementById('templateModal').classList.add('hidden');
     }
 
-    // Save functions
-    function saveConversationSettings() {
-      alert('تم حفظ إعدادات المحادثة بنجاح!');
+    // Save functions (persisted in system_settings)
+    async function saveConversationSettings() {
+      try {
+        await trpc("POST", "system.updateAiAdminSettings", {
+          systemPrompt: document.getElementById('systemPrompt')?.value || '',
+          maxTokens: parseInt(document.getElementById('maxTokens')?.value || '2000', 10),
+          temperature: parseInt(document.getElementById('temperature')?.value || '70', 10),
+          memoryEnabled: !!document.getElementById('enableMemory')?.checked,
+        });
+        showNotification('تم حفظ إعدادات المحادثة بنجاح', 'success');
+      } catch (error) {
+        console.error('Error saving conversation settings:', error);
+        showNotification('حدث خطأ في حفظ الإعدادات', 'error');
+      }
     }
 
-    function saveSourceSettings() {
-      alert('تم حفظ إعدادات المصادر بنجاح!');
+    async function saveSourceSettings() {
+      try {
+        await trpc("POST", "system.updateAiAdminSettings", {
+          sourceProcessingPrompt: document.getElementById('sourceProcessingPrompt')?.value || '',
+          ragEnabled: !!document.getElementById('enableRAG')?.checked,
+          sourcesPerAnswer: parseInt(document.getElementById('sourcesPerAnswer')?.value || '5', 10),
+          similarityThreshold: parseInt(document.getElementById('similarityThreshold')?.value || '70', 10),
+        });
+        showNotification('تم حفظ إعدادات المصادر بنجاح', 'success');
+      } catch (error) {
+        console.error('Error saving source settings:', error);
+        showNotification('حدث خطأ في حفظ الإعدادات', 'error');
+      }
     }
 
-    function savePersonalitySettings() {
-      alert('تم حفظ إعدادات الشخصية بنجاح!');
+    async function savePersonalitySettings() {
+      try {
+        await trpc("POST", "system.updateAiAdminSettings", {
+          aiName: document.getElementById('aiName')?.value || '',
+          aiTone: document.getElementById('aiTone')?.value || 'friendly',
+          aiPersonality: document.getElementById('aiPersonality')?.value || '',
+          welcomeMessage: document.getElementById('welcomeMessage')?.value || '',
+          useEmoji: !!document.getElementById('useEmoji')?.checked,
+          alwaysCiteSources: !!document.getElementById('alwaysCiteSources')?.checked,
+        });
+        showNotification('تم حفظ إعدادات الشخصية بنجاح', 'success');
+      } catch (error) {
+        console.error('Error saving personality settings:', error);
+        showNotification('حدث خطأ في حفظ الإعدادات', 'error');
+      }
+    }
+
+    // Load AI settings from backend
+    async function loadAiSettings() {
+      try {
+        const settings = await trpc("GET", "system.getAiAdminSettings");
+        if (!settings) return;
+
+        if (settings.systemPrompt !== null && document.getElementById('systemPrompt')) document.getElementById('systemPrompt').value = settings.systemPrompt;
+        if (settings.maxTokens !== null && document.getElementById('maxTokens')) document.getElementById('maxTokens').value = settings.maxTokens;
+        if (settings.temperature !== null && document.getElementById('temperature')) document.getElementById('temperature').value = settings.temperature;
+        if (settings.memoryEnabled !== null && document.getElementById('enableMemory')) document.getElementById('enableMemory').checked = !!settings.memoryEnabled;
+
+        if (settings.sourceProcessingPrompt !== null && document.getElementById('sourceProcessingPrompt')) document.getElementById('sourceProcessingPrompt').value = settings.sourceProcessingPrompt;
+        if (settings.ragEnabled !== null && document.getElementById('enableRAG')) document.getElementById('enableRAG').checked = !!settings.ragEnabled;
+        if (settings.sourcesPerAnswer !== null && document.getElementById('sourcesPerAnswer')) document.getElementById('sourcesPerAnswer').value = String(settings.sourcesPerAnswer);
+        if (settings.similarityThreshold !== null && document.getElementById('similarityThreshold')) document.getElementById('similarityThreshold').value = String(settings.similarityThreshold);
+
+        if (settings.aiName !== null && document.getElementById('aiName')) document.getElementById('aiName').value = settings.aiName;
+        if (settings.aiTone !== null && document.getElementById('aiTone')) document.getElementById('aiTone').value = settings.aiTone;
+        if (settings.aiPersonality !== null && document.getElementById('aiPersonality')) document.getElementById('aiPersonality').value = settings.aiPersonality;
+        if (settings.welcomeMessage !== null && document.getElementById('welcomeMessage')) document.getElementById('welcomeMessage').value = settings.welcomeMessage;
+        if (settings.useEmoji !== null && document.getElementById('useEmoji')) document.getElementById('useEmoji').checked = !!settings.useEmoji;
+        if (settings.alwaysCiteSources !== null && document.getElementById('alwaysCiteSources')) document.getElementById('alwaysCiteSources').checked = !!settings.alwaysCiteSources;
+      } catch (error) {
+        console.error('Error loading AI settings:', error);
+      }
+    }
+
+    // Load notification automation settings from backend
+    async function loadNotificationAdminSettings() {
+      try {
+        const settings = await trpc("GET", "system.getNotificationAdminSettings");
+        if (!settings) return;
+
+        notificationAdminTemplates = settings.templates || null;
+
+        if (document.getElementById('notifRegistrationEnabled')) document.getElementById('notifRegistrationEnabled').checked = !!settings.registrationEnabled;
+        if (document.getElementById('notifPurchaseEnabled')) document.getElementById('notifPurchaseEnabled').checked = !!settings.purchaseEnabled;
+        if (document.getElementById('notifCartEnabled')) document.getElementById('notifCartEnabled').checked = !!settings.cartEnabled;
+        if (document.getElementById('notifCartDelay')) document.getElementById('notifCartDelay').value = settings.cartDelay || 'بعد ساعة';
+        if (document.getElementById('notifUnreadMessagesEnabled')) document.getElementById('notifUnreadMessagesEnabled').checked = !!settings.unreadMessagesEnabled;
+        if (document.getElementById('notifNewFilesEnabled')) document.getElementById('notifNewFilesEnabled').checked = !!settings.newFilesEnabled;
+      } catch (error) {
+        console.error('Error loading notification settings:', error);
+      }
+    }
+
+    async function saveNotificationAdminSettings() {
+      try {
+        await trpc("POST", "system.updateNotificationAdminSettings", {
+          registrationEnabled: !!document.getElementById('notifRegistrationEnabled')?.checked,
+          purchaseEnabled: !!document.getElementById('notifPurchaseEnabled')?.checked,
+          cartEnabled: !!document.getElementById('notifCartEnabled')?.checked,
+          cartDelay: document.getElementById('notifCartDelay')?.value || 'بعد ساعة',
+          unreadMessagesEnabled: !!document.getElementById('notifUnreadMessagesEnabled')?.checked,
+          newFilesEnabled: !!document.getElementById('notifNewFilesEnabled')?.checked,
+          templates: notificationAdminTemplates || undefined,
+        });
+      } catch (error) {
+        console.error('Error saving notification settings:', error);
+      }
+    }
+
+    function initNotificationAdminSettingsListeners() {
+      const ids = [
+        'notifRegistrationEnabled',
+        'notifPurchaseEnabled',
+        'notifCartEnabled',
+        'notifCartDelay',
+        'notifUnreadMessagesEnabled',
+        'notifNewFilesEnabled',
+      ];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.addEventListener('change', () => {
+          saveNotificationAdminSettings();
+        });
+      }
     }
 
     function saveNewsAutomation() {
@@ -2584,8 +2699,21 @@
 
     document.getElementById('templateForm')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      closeTemplateModal();
-      alert('تم حفظ القالب بنجاح!');
+      const subject = document.getElementById('templateSubject')?.value || '';
+      const body = document.getElementById('templateBody')?.value || '';
+      if (!currentTemplateType) {
+        closeTemplateModal();
+        showNotification('نوع القالب غير محدد', 'error');
+        return;
+      }
+      notificationAdminTemplates = notificationAdminTemplates || {};
+      notificationAdminTemplates[currentTemplateType] = { subject, body };
+      saveNotificationAdminSettings().then(() => {
+        showNotification('تم حفظ القالب بنجاح', 'success');
+        closeTemplateModal();
+      }).catch(() => {
+        showNotification('فشل في حفظ القالب', 'error');
+      });
     });
 
     // Payment Gateway Functions
@@ -2743,20 +2871,30 @@
     });
 
     // Save Daily Limits (Note: These are managed via tier_limits table, not localStorage)
-    function saveDailyLimits() {
-      showNotification('حدود الاستخدام يتم إدارتها عبر جدول tier_limits في قاعدة البيانات. يرجى استخدام واجهة إدارة الخطط.', 'info');
+    async function saveDailyLimits() {
+      try {
+        const freeDailyLimit = parseInt(document.getElementById('freeDailyLimit')?.value || '5', 10);
+        const guestDailyLimit = parseInt(document.getElementById('guestDailyLimit')?.value || '3', 10);
+        await trpc("POST", "system.updateSystemSettings", { freeDailyLimit, guestDailyLimit });
+        showNotification('تم حفظ حدود الاستخدام بنجاح', 'success');
+      } catch (error) {
+        console.error('Error saving daily limits:', error);
+        showNotification('حدث خطأ في حفظ الحدود', 'error');
+      }
     }
 
-    // Load saved daily limits
-    function loadDailyLimits() {
-      const freeDailyLimit = localStorage.getItem('freeDailyLimit') || '5';
-      const guestDailyLimit = localStorage.getItem('guestDailyLimit') || '3';
-      
-      if (document.getElementById('freeDailyLimit')) {
-        document.getElementById('freeDailyLimit').value = freeDailyLimit;
-      }
-      if (document.getElementById('guestDailyLimit')) {
-        document.getElementById('guestDailyLimit').value = guestDailyLimit;
+    // Load saved daily limits from backend (system_settings)
+    async function loadDailyLimits() {
+      try {
+        const settings = await trpc("GET", "system.getSystemSettings");
+        if (document.getElementById('freeDailyLimit') && settings?.freeDailyLimit !== undefined) {
+          document.getElementById('freeDailyLimit').value = settings.freeDailyLimit;
+        }
+        if (document.getElementById('guestDailyLimit') && settings?.guestDailyLimit !== undefined) {
+          document.getElementById('guestDailyLimit').value = settings.guestDailyLimit;
+        }
+      } catch (error) {
+        console.error('Error loading daily limits:', error);
       }
     }
 
@@ -2871,7 +3009,7 @@
       
       // Remove from list for re-add on submit
       customPackages = customPackages.filter(p => p.id !== id);
-      localStorage.setItem('khabeer_custom_packages', JSON.stringify(customPackages));
+      // Custom packages are disabled (no backend support); avoid localStorage reliance.
       renderCustomPackages();
       
       showNotification('تم تحميل الباقة للتعديل', 'info');
@@ -3033,6 +3171,7 @@
           proPrice: parseFloat(document.getElementById('proPrice').value),
           platformCommission: parseFloat(document.getElementById('platformCommission').value),
           minExpertPrice: parseFloat(document.getElementById('minExpertPrice').value),
+          maxExpertPrice: parseFloat(document.getElementById('maxExpertPrice').value),
         });
         showNotification('تم حفظ إعدادات التسعير بنجاح', 'success');
       } catch (error) {
@@ -3076,6 +3215,7 @@
           if (settings.proPrice) document.getElementById('proPrice').value = settings.proPrice;
           if (settings.platformCommission) document.getElementById('platformCommission').value = settings.platformCommission;
           if (settings.minExpertPrice) document.getElementById('minExpertPrice').value = settings.minExpertPrice;
+          if (settings.maxExpertPrice) document.getElementById('maxExpertPrice').value = settings.maxExpertPrice;
 
           // Load complexity settings
           if (settings.financialThreshold) document.getElementById('financialThreshold').value = settings.financialThreshold;
@@ -3612,6 +3752,10 @@
 
     renderTestQuestions();
     loadGrowthSettings();
+    loadDailyLimits();
+    loadAiSettings();
+    loadNotificationAdminSettings();
+    initNotificationAdminSettingsListeners();
     renderVendors();
     renderCustomPackages();
     renderPendingApplications();
