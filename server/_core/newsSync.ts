@@ -137,22 +137,50 @@ function mapNewsAPIArticle(article: NewsAPIArticle): {
   category: "stocks" | "gold" | "fatwas" | "markets" | "general";
   publishedAt: Date;
 } {
-  // Determine category based on content
-  const titleLower = article.title.toLowerCase();
-  const contentLower = (article.description || article.content || "").toLowerCase();
-  
+  // Determine category based on content.
+  // NOTE: DB enum does NOT include "banking" or "sukuk" categories, so both are stored as "markets"
+  // and mapped back to UI tabs via server/db.ts getNews(categoryMap).
+  const titleLower = (article.title || "").toLowerCase();
+  const bodyLower = (article.description || article.content || "").toLowerCase();
+  const hay = `${titleLower}\n${bodyLower}`;
+
+  const includesAny = (words: string[]) => words.some((w) => hay.includes(w));
+
+  const goldScore = includesAny(["ذهب", "gold", "bullion", "xau"]) ? 10 : 0;
+
+  // Sukuk/banking/markets keywords (Arabic + English)
+  const marketsScore = (() => {
+    let score = 0;
+    if (includesAny(["صكوك", "صك", "sukuk", "islamic bond", "bond"])) score += 5;
+    if (includesAny(["بنك", "مصرف", "bank", "banking", "islamic bank", "sharia bank"])) score += 5;
+    if (includesAny(["تمويل", "تمويل اسلامي", "finance", "financing", "islamic finance", "sharia", "shariah"])) score += 3;
+    if (includesAny(["اقتصاد", "اقتصادي", "economy", "economic", "macroeconomic"])) score += 2;
+    if (includesAny(["سوق", "الأسواق", "markets", "market"])) score += 2;
+    if (includesAny(["business", "corporate", "capital markets"])) score += 1;
+    return score;
+  })();
+
+  // Stocks keywords (Arabic + English)
+  const stocksScore = (() => {
+    let score = 0;
+    if (includesAny(["أسهم", "سهم", "بورصة", "تداول"])) score += 5;
+    if (includesAny(["stock", "stocks", "equity", "equities", "share", "shares"])) score += 5;
+    if (includesAny(["ipo", "listing", "earnings", "quarter", "guidance", "dividend"])) score += 2;
+    return score;
+  })();
+
   let category: "stocks" | "gold" | "fatwas" | "markets" | "general" = "general";
-  
-  if (titleLower.includes("صكوك") || contentLower.includes("صكوك") || titleLower.includes("sukuk")) {
-    category = "markets"; // Use "markets" for sukuk since schema doesn't have "sukuk"
-  } else if (titleLower.includes("بنك") || contentLower.includes("بنك") || titleLower.includes("bank") || titleLower.includes("banking")) {
-    category = "markets"; // Use "markets" for banking
-  } else if (titleLower.includes("سهم") || titleLower.includes("أسهم") || titleLower.includes("stock") || titleLower.includes("equity")) {
-    category = "stocks";
-  } else if (titleLower.includes("finance") || titleLower.includes("مالي") || titleLower.includes("اقتصاد")) {
-    category = "markets";
-  } else if (titleLower.includes("ذهب") || titleLower.includes("gold")) {
+  if (goldScore > 0) {
     category = "gold";
+  } else if (stocksScore >= 5 && stocksScore >= marketsScore) {
+    category = "stocks";
+  } else if (marketsScore > 0) {
+    category = "markets";
+  } else {
+    // If it's finance-related but without strong keywords, prefer markets over general
+    if (includesAny(["islamic", "sharia", "shariah", "halal", "حلال", "الشريعة", "التمويل"])) {
+      category = "markets";
+    }
   }
 
   return {
