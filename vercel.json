@@ -32,7 +32,7 @@
     },
     {
       "src": "^/$",
-      "dest": "/public/index.html"
+      "dest": "/public/landing.html"
     }
   ]
 }

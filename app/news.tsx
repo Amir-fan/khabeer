@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Image, RefreshControl, ActivityIndicator, StyleSheet, Animated, Platform } from "react-native";
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, StyleSheet, Animated, Platform, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { AnimatedPressable } from "@/components/animated-pressable";
+import { NewsCard } from "@/components/news-card";
 import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
 import Svg, { Path, Circle, Rect, G } from "react-native-svg";
@@ -72,7 +73,7 @@ const categories = [
   { id: "stocks", label: "الأسهم", icon: Icons.stocks },
   { id: "sukuk", label: "الصكوك", icon: Icons.sukuk },
   { id: "banking", label: "البنوك", icon: Icons.banking },
-  { id: "fatwa", label: "الفتاوى", icon: Icons.fatwa },
+  { id: "fatwa", label: "الفتاوى", icon: Icons.fatwa }, // UI uses "fatwa", but schema uses "fatwas"
 ];
 
 export default function NewsScreen() {
@@ -90,7 +91,7 @@ export default function NewsScreen() {
   }, []);
 
   // Try to fetch news from API, but don't fail if API is not available
-  const { data: newsData, refetch, isLoading } = trpc.news.list.useQuery({
+  const { data: newsData, refetch, isLoading, error } = trpc.news.list.useQuery({
     category: selectedCategory === "all" ? undefined : selectedCategory,
     limit: 20,
   }, {
@@ -111,16 +112,11 @@ export default function NewsScreen() {
 
   const news = newsData || [];
 
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "—";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("ar-SA", { month: "short", day: "numeric" });
-  };
-
-  const getCategoryIcon = (categoryId: string) => {
-    const cat = categories.find(c => c.id === categoryId);
-    return cat?.icon || Icons.all;
-  };
+  // Calculate grid item width responsively
+  const screenWidth = Dimensions.get("window").width;
+  const padding = 32; // 16px on each side
+  const gap = 12;
+  const itemWidth = (screenWidth - padding - gap) / 2;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
@@ -171,7 +167,7 @@ export default function NewsScreen() {
           ))}
         </ScrollView>
 
-        {/* News List */}
+        {/* News Grid */}
         <ScrollView
           style={styles.newsList}
           contentContainerStyle={styles.newsContent}
@@ -195,65 +191,57 @@ export default function NewsScreen() {
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>{Icons.newspaper("#C9B896")}</View>
               <Text style={styles.emptyTitle}>لا توجد أخبار حالياً</Text>
-              <Text style={styles.emptySubtitle}>سيتم عرض الأخبار الشرعية والمالية هنا فور توفرها.</Text>
+              <Text style={styles.emptySubtitle}>
+                {error 
+                  ? `خطأ في الاتصال: ${error.message || "فشل تحميل الأخبار"}` 
+                  : "سيتم عرض الأخبار الشرعية والمالية هنا فور توفرها."}
+              </Text>
+              {__DEV__ && error && (
+                <Text style={[styles.emptySubtitle, { fontSize: 10, marginTop: 8 }]}>
+                  Debug: {JSON.stringify(error, null, 2)}
+                </Text>
+              )}
             </View>
           )}
 
-          {!isLoading && news.length > 0 && news.map((item: any) => (
-            <Animated.View
-              key={item.id}
-              style={[
-                styles.newsCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [{
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    }),
-                  }],
-                },
-              ]}
-            >
-              <AnimatedPressable style={styles.newsCardInner}>
-                {item.imageUrl && (
-                  <Image
-                    source={{ uri: item.imageUrl }}
-                    style={styles.newsImage}
-                    resizeMode="cover"
+          {!isLoading && news.length > 0 && (
+            <View style={styles.newsGrid}>
+              {news.map((item: any) => (
+                <Animated.View
+                  key={item.id}
+                  style={[
+                    styles.gridItem,
+                    { width: itemWidth },
+                    {
+                      opacity: fadeAnim,
+                      transform: [{
+                        translateY: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [20, 0],
+                        }),
+                      }],
+                    },
+                  ]}
+                >
+                  <NewsCard
+                    id={item.id}
+                    title={item.title}
+                    body={item.content}
+                    summary={item.summary}
+                    source={item.source}
+                    date={item.publishedAt}
+                    category={item.category}
+                    onPress={() => {
+                      // TODO: Navigate to news detail page if needed
+                      if (Platform.OS !== "web") {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
                   />
-                )}
-                <View style={styles.newsBody}>
-                  <View style={styles.newsHeader}>
-                    <View style={styles.categoryBadge}>
-                      {getCategoryIcon(item.category)("#8B1538")}
-                      <Text style={styles.categoryBadgeText}>
-                        {categories.find((c) => c.id === item.category)?.label || item.category}
-                      </Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                      {Icons.source("#9BA1A6")}
-                      <Text style={styles.metaText}>{item.source || "غير معروف"}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.newsTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {item.summary ? (
-                    <Text style={styles.newsSummary} numberOfLines={3}>
-                      {item.summary}
-                    </Text>
-                  ) : null}
-                  <View style={styles.newsFooter}>
-                    {Icons.clock("#9BA1A6")}
-                    <Text style={styles.newsDate}>
-                      {formatDate(item.publishedAt)}
-                    </Text>
-                  </View>
-                </View>
-              </AnimatedPressable>
-            </Animated.View>
-          ))}
+                </Animated.View>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
     </ScreenContainer>
@@ -333,7 +321,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   newsContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -345,82 +333,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9BA1A6",
     marginTop: 16,
-  },
-  newsCard: {
-    marginBottom: 16,
-  },
-  newsCardInner: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  newsImage: {
-    width: "100%",
-    height: 160,
-  },
-  newsBody: {
-    padding: 16,
-  },
-  newsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  categoryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#8B153815",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  categoryBadgeText: {
-    fontSize: 12,
-    color: "#8B1538",
-    fontWeight: "500",
-  },
-  sourceBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  sourceText: {
-    fontSize: 12,
-    color: "#687076",
-  },
-  newsTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#11181C",
     textAlign: "right",
-    marginBottom: 8,
-    lineHeight: 26,
   },
-  newsSummary: {
-    fontSize: 14,
-    color: "#687076",
-    textAlign: "right",
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  newsFooter: {
+  newsGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 6,
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    gap: 12,
+    // RTL support
+    ...(Platform.OS === "web" ? { direction: "rtl" } : {}),
   },
-  newsDate: {
-    fontSize: 12,
-    color: "#9BA1A6",
+  gridItem: {
+    // Width will be set dynamically via inline style
   },
   emptyState: {
     alignItems: "center",

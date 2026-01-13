@@ -402,10 +402,24 @@ export async function getNews(category?: string, limit = 20) {
   if (!db) return [];
   
   if (category && category !== "all") {
+    // Map UI categories to schema categories
+    // UI uses: "fatwa", "sukuk", "banking"
+    // Schema has: "fatwas", "markets", "stocks", "gold", "general"
+    const categoryMap: Record<string, string> = {
+      fatwa: "fatwas",
+      sukuk: "markets", // Map sukuk to markets
+      banking: "markets", // Map banking to markets
+      stocks: "stocks",
+      gold: "gold",
+      markets: "markets",
+      general: "general",
+    };
+    
+    const mappedCategory = categoryMap[category] || category;
     return db
       .select()
       .from(news)
-      .where(eq(news.category, category as any))
+      .where(eq(news.category, mappedCategory as any))
       .orderBy(desc(news.publishedAt))
       .limit(limit);
   }

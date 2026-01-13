@@ -2688,6 +2688,10 @@ ${input.fileContent}
       .query(({ input }) => {
         return db.getNews(input?.category, input?.limit);
       }),
+    sync: adminProcedure.mutation(async () => {
+      const { syncAllNews } = await import("./_core/newsSync.js");
+      return syncAllNews();
+    }),
   }),
 
   // Admin Router - All endpoints require admin role
