@@ -7,6 +7,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
 import Svg, { Path, Circle } from "react-native-svg";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/use-auth";
 
 // Icons
 const Icons = {
@@ -73,10 +75,14 @@ const serviceTypes = [
 
 export default function ConsultantRequestScreen() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [attachedFile, setAttachedFile] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createConsultationMutation = trpc.consultations.create.useMutation();
+  const createFileMutation = trpc.files.create.useMutation();
 
   const handleSelectService = (serviceId: string) => {
     if (Platform.OS !== "web") {
@@ -120,21 +126,47 @@ export default function ConsultantRequestScreen() {
     }
 
     const service = serviceTypes.find(s => s.id === selectedService);
+    try {
+      if (!isAuthenticated) {
+        Alert.alert("تسجيل الدخول مطلوب", "يرجى تسجيل الدخول لإرسال طلب خبير شرعي.", [
+          { text: "إلغاء", style: "cancel" },
+          { text: "تسجيل الدخول", onPress: () => router.push("/auth") },
+        ]);
+        return;
+      }
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+      // Optional: create a lightweight file record so the consultation can reference it.
+      // (We keep UI unchanged; actual bytes upload can be implemented later via signed upload flow.)
+      let fileRef: { fileId: number; name: string } | null = null;
+      if (attachedFile) {
+        const created = await createFileMutation.mutateAsync({
+          name: attachedFile,
+          type: "other",
+        });
+        fileRef = { fileId: created.id, name: attachedFile };
+      }
+
+      // Create real consultation record (server transitions to pending_advisor internally).
+      await createConsultationMutation.mutateAsync({
+        summary: description.trim(),
+        grossAmountKwd: service?.price,
+        files: fileRef ? [fileRef] : undefined,
+      });
+
       Alert.alert(
         "تم إرسال الطلب",
         `سيتم توجيه طلبك لأفضل خبير متاح.\n\nالتكلفة المتوقعة: ${service?.price} ${service?.currency}\nالوقت المتوقع: ${service?.estimatedTime}\n\nسيتم التواصل معك قريباً لتأكيد الطلب والدفع.`,
-        [
-          {
-            text: "حسناً",
-            onPress: () => router.back(),
-          },
-        ]
+        [{ text: "حسناً", onPress: () => router.back() }],
       );
-    }, 1500);
+    } catch (err: any) {
+      const message =
+        err?.data?.code === "UNAUTHORIZED"
+          ? "يرجى تسجيل الدخول لإرسال الطلب."
+          : err?.message || "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.";
+      Alert.alert("خطأ", message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const selectedServiceData = serviceTypes.find(s => s.id === selectedService);
