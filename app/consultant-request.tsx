@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, TextInput, Alert, Platform, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TextInput, Alert, Platform, StyleSheet, Pressable, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { AnimatedPressable } from "@/components/animated-pressable";
@@ -85,10 +85,12 @@ export default function ConsultantRequestScreen() {
   const createFileMutation = trpc.files.create.useMutation();
 
   const handleSelectService = (serviceId: string) => {
+    console.log("[ConsultantRequest] handleSelectService called with:", serviceId);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setSelectedService(serviceId);
+    console.log("[ConsultantRequest] selectedService state updated to:", serviceId);
   };
 
   const handleAttachFile = async () => {
@@ -196,20 +198,18 @@ export default function ConsultantRequestScreen() {
         {/* Service Selection */}
         <Text style={styles.sectionTitle}>اختر نوع الخدمة</Text>
         <View style={styles.servicesContainer}>
-          {serviceTypes.map((service) => (
-            <AnimatedPressable
-              key={service.id}
-              onPress={() => handleSelectService(service.id)}
-            >
-              <View
-                style={[
-                  styles.serviceCard,
-                  selectedService === service.id && styles.serviceCardSelected,
-                ]}
-              >
+          {serviceTypes.map((service) => {
+            const isSelected = selectedService === service.id;
+            const handleClick = () => {
+              console.log("[ConsultantRequest] Service clicked:", service.id);
+              handleSelectService(service.id);
+            };
+            
+            const cardContent = (
+              <>
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceName}>{service.name}</Text>
-                  {selectedService === service.id && Icons.check("#8B1538")}
+                  {isSelected && Icons.check("#8B1538")}
                 </View>
                 <Text style={styles.serviceDescription}>{service.description}</Text>
                 <View style={styles.serviceFooter}>
@@ -218,9 +218,52 @@ export default function ConsultantRequestScreen() {
                   </Text>
                   <Text style={styles.serviceTime}>⏱️ {service.estimatedTime}</Text>
                 </View>
-              </View>
-            </AnimatedPressable>
-          ))}
+              </>
+            );
+            
+            if (Platform.OS === "web") {
+              // Web: Use TouchableOpacity with explicit event handling
+              return (
+                <TouchableOpacity
+                  key={service.id}
+                  onPress={(e) => {
+                    e?.preventDefault?.();
+                    e?.stopPropagation?.();
+                    console.log("[ConsultantRequest] TouchableOpacity onPress:", service.id);
+                    handleClick();
+                  }}
+                  onPressIn={() => {
+                    console.log("[ConsultantRequest] TouchableOpacity onPressIn:", service.id);
+                  }}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.serviceCard,
+                    isSelected && styles.serviceCardSelected,
+                  ]}
+                  // Ensure it's clickable on web
+                  accessible={true}
+                  accessibilityRole="button"
+                >
+                  {cardContent}
+                </TouchableOpacity>
+              );
+            }
+            
+            // Native: Use Pressable
+            return (
+              <Pressable
+                key={service.id}
+                onPress={handleClick}
+                style={[
+                  styles.serviceCard,
+                  isSelected && styles.serviceCardSelected,
+                ]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {cardContent}
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Description */}
@@ -353,6 +396,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 2,
     borderColor: "transparent",
+    cursor: Platform.OS === "web" ? "pointer" : "default",
   },
   serviceCardSelected: {
     borderColor: "#8B1538",

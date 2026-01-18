@@ -5,6 +5,11 @@ export type AiSettings = {
   memoryEnabled: boolean;
   maxTokens?: number | null;
   shortMaxTokens?: number | null;
+  personality?: {
+    name?: string | null;
+    description?: string | null;
+    tone?: string | null;
+  } | null;
 };
 
 const DEFAULT_MAX_TOKENS = 2000;
@@ -31,12 +36,20 @@ function parseNumber(val: string | null): number | null {
  * - ai:memoryEnabled ("true"/"false")
  * - ai:maxTokens (number)
  * - ai:shortMaxTokens (number)
+ * - ai:persona.name
+ * - ai:persona.description
+ * - ai:persona.tone
  */
 export async function loadAiSettings(): Promise<AiSettings> {
   const systemPrompt = (await getSetting("ai:systemPrompt")) ?? null;
   const memoryEnabledRaw = await getSetting("ai:memoryEnabled");
   const maxTokensRaw = await getSetting("ai:maxTokens");
   const shortMaxTokensRaw = await getSetting("ai:shortMaxTokens");
+  
+  // Load personality settings
+  const aiName = await getSetting("ai:persona.name");
+  const aiDescription = await getSetting("ai:persona.description");
+  const aiTone = await getSetting("ai:persona.tone");
 
   const memoryParsed = parseBoolean(memoryEnabledRaw);
   const maxTokensParsed = parseNumber(maxTokensRaw);
@@ -47,6 +60,11 @@ export async function loadAiSettings(): Promise<AiSettings> {
     memoryEnabled: memoryParsed !== null ? memoryParsed : true,
     maxTokens: maxTokensParsed ?? DEFAULT_MAX_TOKENS,
     shortMaxTokens: shortMaxTokensParsed ?? DEFAULT_SHORT_MAX_TOKENS,
+    personality: (aiName || aiDescription || aiTone) ? {
+      name: aiName || null,
+      description: aiDescription || null,
+      tone: aiTone || null,
+    } : null,
   };
 }
 

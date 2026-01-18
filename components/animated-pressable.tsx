@@ -23,7 +23,7 @@ export function AnimatedPressable({
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.95,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web", // Native driver doesn't work well on web
     }).start();
   };
 
@@ -31,7 +31,7 @@ export function AnimatedPressable({
     Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 3,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web", // Native driver doesn't work well on web
     }).start();
   };
 

@@ -112,11 +112,11 @@ export default function NewsScreen() {
 
   const news = newsData || [];
 
-  // Calculate grid item width responsively
+  // Calculate grid item width responsively for 2-column layout
   const screenWidth = Dimensions.get("window").width;
-  const padding = 32; // 16px on each side
-  const gap = 12;
-  const itemWidth = Math.floor((screenWidth - padding - gap) / 2);
+  const padding = 16; // 16px on each side
+  const gap = 10;
+  const itemWidth = Math.floor((screenWidth - padding * 2 - gap) / 2);
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background">
@@ -207,21 +207,12 @@ export default function NewsScreen() {
           {!isLoading && news.length > 0 && (
             <View style={styles.newsGrid}>
               {news.map((item: any, index: number) => (
-                <Animated.View
+                <View
                   key={item.id}
                   style={[
                     styles.gridItem,
                     { 
                       width: itemWidth,
-                    },
-                    {
-                      opacity: fadeAnim,
-                      transform: [{
-                        translateY: fadeAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [20, 0],
-                        }),
-                      }],
                     },
                   ]}
                 >
@@ -240,7 +231,7 @@ export default function NewsScreen() {
                       }
                     }}
                   />
-                </Animated.View>
+                </View>
               ))}
             </View>
           )}
@@ -325,6 +316,7 @@ const styles = StyleSheet.create({
   newsContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,
+    paddingTop: 8,
   },
   loadingContainer: {
     alignItems: "center",
@@ -340,13 +332,13 @@ const styles = StyleSheet.create({
   newsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
-    gap: 12,
+    justifyContent: "space-between",
+    gap: 10,
     width: "100%",
   },
   gridItem: {
     // Width will be set dynamically via inline style
-    marginBottom: 12,
+    marginBottom: 10,
   },
   emptyState: {
     alignItems: "center",

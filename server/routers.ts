@@ -1837,25 +1837,44 @@ export const appRouter = router({
           const hasDisclaimer = historyText ? hasRecentDisclaimer(historyText) : false;
           
           // Determine response mode based on intent
+          // Build personality prefix to inject into system prompt
+          const buildPersonalityPrefix = () => {
+            if (!aiSettings.personality) return "";
+            const parts: string[] = [];
+            if (aiSettings.personality.name) {
+              parts.push(`أنت "${aiSettings.personality.name}"`);
+            }
+            if (aiSettings.personality.description) {
+              parts.push(aiSettings.personality.description);
+            }
+            if (parts.length === 0) return "";
+            return `${parts.join(". ")}.\n\n⚠️ مهم جداً: لا تذكر أبداً أنك "LLM" أو "نموذج لغوي" أو "مدرب من Google". أنت ${aiSettings.personality.name || "خبير"} فقط.\n\n`;
+          };
+          
+          const personalityPrefix = buildPersonalityPrefix();
+          
           let systemPrompt: string;
           let maxTokens: number;
           let shouldAddDisclaimer: boolean;
           
           if (intent === "EMPTY_OR_ACK") {
             // Short response mode - no analysis, no disclaimers
-            systemPrompt = aiSettings.systemPrompt || SHORT_RESPONSE_PROMPT;
+            const basePrompt = aiSettings.systemPrompt || SHORT_RESPONSE_PROMPT;
+            systemPrompt = personalityPrefix + basePrompt;
             maxTokens = aiSettings.shortMaxTokens || 150; // Very short responses
             shouldAddDisclaimer = false;
           } else if (intent === "FOLLOW_UP" && hasDisclaimer) {
             // Follow-up: expand specific point, no full structure, no duplicate disclaimer
-            systemPrompt = `${aiSettings.systemPrompt || ISLAMIC_FINANCE_SYSTEM_PROMPT}
+            const basePrompt = aiSettings.systemPrompt || ISLAMIC_FINANCE_SYSTEM_PROMPT;
+            systemPrompt = personalityPrefix + `${basePrompt}
 
 ⚠️ مهم: المستخدم يطلب توضيحاً أو متابعة. ركز فقط على النقطة المحددة دون إعادة الهيكل الكامل (التحليل المعرفي، التنبيه، الإحالة). لا تكرر التنبيهات والإحالات التي تم ذكرها سابقاً.`;
             maxTokens = aiSettings.maxTokens || 800; // Moderate length for follow-ups
             shouldAddDisclaimer = false; // Already in history
           } else if (intent === "FOLLOW_UP") {
             // Follow-up but no previous disclaimer
-            systemPrompt = `${aiSettings.systemPrompt || ISLAMIC_FINANCE_SYSTEM_PROMPT}
+            const basePrompt = aiSettings.systemPrompt || ISLAMIC_FINANCE_SYSTEM_PROMPT;
+            systemPrompt = personalityPrefix + `${basePrompt}
 
 ⚠️ مهم: المستخدم يطلب توضيحاً أو متابعة. ركز فقط على النقطة المحددة دون إعادة الهيكل الكامل.`;
             maxTokens = aiSettings.maxTokens || 800;
@@ -1863,7 +1882,8 @@ export const appRouter = router({
           } else {
             // NEW_QUESTION or DOCUMENT_ANALYSIS: full analysis
             const contextBlock = historyText ? `\n\nسياق المحادثة (مختصر):\n${historyText}` : "";
-            systemPrompt = (aiSettings.systemPrompt || FULL_ANALYSIS_PROMPT) + contextBlock + (ragContext ? `\n\n${ragContext}` : "");
+            const basePrompt = aiSettings.systemPrompt || FULL_ANALYSIS_PROMPT;
+            systemPrompt = personalityPrefix + basePrompt + contextBlock + (ragContext ? `\n\n${ragContext}` : "");
             maxTokens = aiSettings.maxTokens || 2000; // Full analysis can be longer
             shouldAddDisclaimer = !hasDisclaimer; // Only if not already present
           }

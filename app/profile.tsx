@@ -112,22 +112,28 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    Alert.alert(
-      "تسجيل الخروج",
-      "هل أنت متأكد من تسجيل الخروج؟",
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "تسجيل الخروج",
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.replace("/auth");
+      Alert.alert(
+        "تسجيل الخروج",
+        "هل أنت متأكد من تسجيل الخروج؟",
+        [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "تسجيل الخروج",
+            style: "destructive",
+            onPress: async () => {
+              await logout();
+              router.replace("/auth");
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } else {
+      // Web: use window.confirm for better compatibility
+      if (window.confirm("هل أنت متأكد من تسجيل الخروج؟")) {
+        await logout();
+        router.replace("/auth");
+      }
+    }
   };
 
   const menuItems = [

@@ -62,3 +62,6 @@ Thumbs.db
 *.tgz
 *.tar.gz
 .cache/
+
+# Temporary files
+tmp_*.json

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 import * as Auth from "@/lib/_core/auth";
 
 export type User = {
@@ -28,12 +29,24 @@ export function useAuth() {
         Auth.getUserInfo(),
       ]);
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(storedUser as any);
-        console.log("[Auth] Restored session from storage");
+      // On web, cookie-based auth means token is null but user exists
+      // On native, both token and user must exist
+      if (Platform.OS === "web") {
+        if (storedUser) {
+          setUser(storedUser as any);
+          setToken("cookie"); // Placeholder to indicate cookie-based auth
+          console.log("[Auth] Restored session from storage (web cookie-based)");
+        } else {
+          console.log("[Auth] No stored session found");
+        }
       } else {
-        console.log("[Auth] No stored session found");
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          setUser(storedUser as any);
+          console.log("[Auth] Restored session from storage");
+        } else {
+          console.log("[Auth] No stored session found");
+        }
       }
     } catch (err) {
       console.error("[Auth] Failed to load stored auth:", err);
@@ -50,7 +63,8 @@ export function useAuth() {
         Auth.setSessionToken(authToken),
         Auth.setUserInfo(authUser as any),
       ]);
-      setToken(authToken);
+      // On web, token is not stored (cookie-based), but we set a placeholder
+      setToken(Platform.OS === "web" ? "cookie" : authToken);
       setUser(authUser);
       console.log("[Auth] Session saved to storage");
     } catch (err) {
@@ -85,7 +99,14 @@ export function useAuth() {
     loadStoredAuth();
   }, [loadStoredAuth]);
 
-  const isAuthenticated = useMemo(() => Boolean(user && token), [user, token]);
+  // On web, user existence means authenticated (cookie-based)
+  // On native, both user and token must exist
+  const isAuthenticated = useMemo(() => {
+    if (Platform.OS === "web") {
+      return Boolean(user); // Web uses cookies, so user existence = authenticated
+    }
+    return Boolean(user && token); // Native requires both
+  }, [user, token]);
 
   return {
     user,
