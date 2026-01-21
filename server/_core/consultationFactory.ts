@@ -1,6 +1,7 @@
 import { assertConsultationTransition } from "./consultationFlow";
 import { getTierDiscountBps, getTierPriorityWeight } from "./tier";
 import * as db from "../db";
+import { assignAdvisorToConsultation } from "./consultationAssignment";
 
 type CreateConsultationParams = {
   userId: number;
@@ -42,13 +43,30 @@ export async function createConsultationRecord(params: CreateConsultationParams)
   assertConsultationTransition("submitted", "pending_advisor");
   await db.updateConsultationRequestStatus(requestId, "pending_advisor", params.userId);
 
-  return {
-    id: requestId,
-    status: "pending_advisor",
-    priorityWeight,
-    discountRateBps,
-    grossAmountKwd: gross,
-    netAmountKwd: netAmount,
-  };
+  // Automatically assign to an available advisor
+  try {
+    const assignment = await assignAdvisorToConsultation({ requestId });
+    return {
+      id: requestId,
+      status: "pending_advisor",
+      priorityWeight,
+      discountRateBps,
+      grossAmountKwd: gross,
+      netAmountKwd: netAmount,
+      assignmentId: assignment.assignmentId,
+      advisorId: assignment.advisorId,
+    };
+  } catch (error) {
+    // If assignment fails (no advisors available), still return the request
+    // Admin can manually assign later
+    return {
+      id: requestId,
+      status: "pending_advisor",
+      priorityWeight,
+      discountRateBps,
+      grossAmountKwd: gross,
+      netAmountKwd: netAmount,
+    };
+  }
 }
 

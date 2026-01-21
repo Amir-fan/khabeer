@@ -895,13 +895,18 @@
     // ---------- ACTIONS ----------
     async function respond(assignmentId, decision) {
       try {
-        await trpc("POST", "consultations.advisorRespond", {
+        console.log('[Partner] Responding to assignment:', { assignmentId, decision });
+        const result = await trpc("POST", "consultations.advisorRespond", {
           assignmentId,
           decision
         });
+        console.log('[Partner] Response received:', result);
+        alert(decision === 'accept' ? 'تم قبول الطلب بنجاح' : 'تم رفض الطلب');
         await loadDashboard();
       } catch (e) {
-        alert(e.message);
+        console.error('[Partner] Error responding:', e);
+        const errorMsg = e.message || e.trpc?.message || 'فشل في معالجة الطلب';
+        alert('خطأ: ' + errorMsg);
       }
     }
     
@@ -1138,6 +1143,89 @@
     document.getElementById("profileForm")?.addEventListener("submit", saveProfile);
     document.getElementById("bankForm")?.addEventListener("submit", saveProfile);
     
+    // ---------- REGISTRATION ----------
+    async function handleRegister(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const form = document.getElementById("registerForm");
+      const submitBtn = form?.querySelector('button[type="submit"]');
+      const errorEl = document.createElement("div");
+      errorEl.className = "text-red-500 text-center mt-4 hidden";
+      errorEl.id = "registerError";
+      
+      // Remove existing error if any
+      const existingError = document.getElementById("registerError");
+      if (existingError) existingError.remove();
+      form?.parentElement?.appendChild(errorEl);
+      
+      // Get form values
+      const companyName = document.getElementById("regCompanyName")?.value.trim();
+      const email = document.getElementById("regEmail")?.value.trim().toLowerCase();
+      const password = document.getElementById("regPassword")?.value;
+      const phone = document.getElementById("regPhone")?.value.trim();
+      const specialty = document.getElementById("regSpecialty")?.value;
+      const bankName = document.getElementById("regBankName")?.value.trim();
+      const iban = document.getElementById("regIBAN")?.value.trim();
+      
+      // Validate
+      if (!companyName) {
+        errorEl.textContent = "يرجى إدخال اسم الشركة/المكتب";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      if (!email) {
+        errorEl.textContent = "يرجى إدخال البريد الإلكتروني";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      if (!password || password.length < 8) {
+        errorEl.textContent = "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+      
+      // Disable form
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "جاري الإرسال...";
+      }
+      
+      try {
+        console.log('[Partner Register] Submitting application...');
+        const result = await trpc("POST", "partnerApplications.submit", {
+          fullName: companyName, // Use company name as full name
+          email,
+          password,
+          phone: phone || undefined,
+          specialization: specialty || undefined,
+          // Note: Bank info and documents would be stored separately after approval
+        });
+        
+        console.log('[Partner Register] Application submitted:', result);
+        
+        alert("تم إرسال الطلب بنجاح!\n\nسيتم مراجعة طلبك من قبل فريقنا وسنتواصل معك قريباً.");
+        showLoginScreen();
+      } catch (e) {
+        console.error('[Partner Register] Error:', e);
+        const errorMessage = e.message || "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.";
+        errorEl.textContent = errorMessage;
+        errorEl.classList.remove("hidden");
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "إرسال الطلب";
+        }
+      }
+    }
+    
+    function showLoginForm() {
+      showLoginScreen();
+    }
+    
+    // Wire up registration form
+    document.getElementById("registerForm")?.addEventListener("submit", handleRegister);
+    
     // Initialize: check for stored token
     (async function init() {
       if (loadStoredToken()) {
@@ -1160,6 +1248,7 @@
     window.respond = respond;
     window.sendMessage = sendMessage;
     window.showRegisterForm = showRegisterScreen;
+    window.showLoginForm = showLoginForm;
     window.handleLogout = handleLogout;
     window.showSection = showSection;
     window.loadDashboard = loadDashboard;

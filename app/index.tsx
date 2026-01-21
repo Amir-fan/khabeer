@@ -503,17 +503,14 @@ export default function HomeScreen() {
     setShowConsultantModal(true);
   };
 
-  const submitConsultantRequest = async () => {
-    // Haptic feedback
+  const submitConsultantRequest = (category?: string) => {
+    // Close modal and navigate to proper form
+    setShowConsultantModal(false);
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    
-    Alert.alert(
-      "✅ تم إرسال الطلب بنجاح",
-      "شكراً لتواصلك معنا!\n\nسيتم التواصل معك من قبل مستشار شرعي متخصص خلال 24 ساعة عبر:\n• البريد الإلكتروني\n• الهاتف المسجل\n\nيمكنك متابعة حالة طلبك من قسم الإشعارات.",
-      [{ text: "حسناً", onPress: () => setShowConsultantModal(false) }]
-    );
+    // Navigate to the full consultant request form
+    router.push("/consultant-request");
   };
 
   const handleAttachFile = async () => {
@@ -966,7 +963,7 @@ export default function HomeScreen() {
               ].map((item, index) => (
                 <AnimatedPressable
                   key={index}
-                  onPress={submitConsultantRequest}
+                  onPress={() => submitConsultantRequest(item.title)}
                   style={styles.consultantOption}
                 >
                   <View style={styles.consultantOptionIcon}>
